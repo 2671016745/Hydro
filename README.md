@@ -7,6 +7,25 @@
 ![GitHub contributors](https://img.shields.io/github/contributors/hydro-dev/Hydro)
 ![GitHub commit activity](https://img.shields.io/github/commit-activity/y/hydro-dev/Hydro)
 
+> **本 fork：Campux OAuth 登录**
+>
+> 这是 Campux 定制版 Hydro fork，登录方式**只保留 Campux OAuth**，内置密码登录与其它 OAuth provider 已关闭。
+>
+> - 使用 [Campux](https://github.com/idoknow/Campux) 校园墙账号通过 OAuth2 + PKCE S256 登录
+> - 未绑定用户首次登录自动创建 Hydro 账号（无需再设本地密码）
+> - QQ `1692138502`（可配置）自动授予 Hydro 超级管理员权限
+> - 启动前必须配置 `CAMPUX_OAUTH_CLIENT_ID` / `CAMPUX_OAUTH_CLIENT_SECRET`，否则启动直接报错
+> - 详细配置见 [`packages/login-with-campux/README.md`](packages/login-with-campux/README.md)
+
+```env
+# 最小启动配置（也可写入 .hydro/env 或系统环境变量）
+CAMPUX_OAUTH_ENDPOINT=https://app.campux.top
+CAMPUX_OAUTH_CLIENT_ID=<在 Campux 后台创建 OAuth 应用后复制>
+CAMPUX_OAUTH_CLIENT_SECRET=<同上>
+CAMPUX_OAUTH_SCOPE=profile tenant
+CAMPUX_ADMIN_QQ=1692138502
+```
+
 Hydro 是一个高效信息学在线测评系统。易安装，跨平台，多功能，可扩展，有题库。
 
 对于不熟悉 Linux 或是懒得运维的老师，我们也提供了免费开通即用的在线版本，  
