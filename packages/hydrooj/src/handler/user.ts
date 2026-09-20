@@ -73,10 +73,9 @@ class UserLoginHandler extends Handler {
         domainId: string, uname: string, password: string, rememberme = false, redirect = '',
         tfa = '', authnChallenge = '', judge = false,
     ) {
-        if (!judge && !system.get('server.login')) throw new BuiltinLoginError();
+        if (!system.get('server.login')) throw new BuiltinLoginError();
         let udoc = await user.getByEmail(domainId, uname);
         udoc ||= await user.getByUname(domainId, uname);
-        if (judge && !system.get('server.login') && !udoc?.hasPriv(PRIV.PRIV_JUDGE)) throw new BuiltinLoginError();
         if (!udoc) throw new UserNotFoundError(uname);
         if (system.get('system.contestmode') && !udoc.hasPriv(PRIV.PRIV_EDIT_SYSTEM)) {
             if (udoc._loginip && udoc._loginip !== this.request.ip) throw new ValidationError('ip');
@@ -492,13 +491,17 @@ class OauthCallbackHandler extends Handler {
             if (existing.some((id) => id && id !== this.user._id)) {
                 throw new BadRequestError('Already bound to another account');
             }
+            await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, this.user._id)));
+            if (r.priv !== undefined) await user.setById(this.user._id, { priv: r.priv });
+            if (r.set && Object.keys(r.set).length) await user.setById(this.user._id, r.set);
             this.response.redirect = this.session.oauthRedirect || this.url('home_security');
             delete this.session.oauthRedirect;
-            await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, this.user._id)));
             return;
         }
         const effective = existing.find((i) => i);
         if (effective) {
+            if (r.priv !== undefined) await user.setById(effective, { priv: r.priv });
+            if (r.set && Object.keys(r.set).length) await user.setById(effective, r.set);
             await successfulAuth.call(this, await user.getById('system', effective));
             this.response.redirect = this.session.oauthRedirect || this.url('homepage');
             delete this.session.oauthRedirect;
@@ -507,13 +510,52 @@ class OauthCallbackHandler extends Handler {
         const udoc = await user.getByEmail('system', r.email);
         if (udoc) {
             await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, udoc._id)));
-            await successfulAuth.call(this, udoc);
+            if (r.priv !== undefined) await user.setById(udoc._id, { priv: r.priv });
+            if (r.set && Object.keys(r.set).length) await user.setById(udoc._id, r.set);
+            await successfulAuth.call(this, await user.getById('system', udoc._id));
             this.response.redirect = this.session.oauthRedirect || this.url('homepage');
             delete this.session.oauthRedirect;
             return;
         }
         if (!provider.canRegister) throw new ForbiddenError('No bound account found');
-        this.checkPriv(PRIV.PRIV_REGISTER_USER);
+        // 受信 provider 可直接自动注册；普通 OAuth 注册仍受 PRIV_REGISTER_USER 控制。
+        if (!provider.autoRegister) this.checkPriv(PRIV.PRIV_REGISTER_USER);
+        if (provider.autoRegister) {
+            // OAuth 自动注册：无需再填密码，直接建号并登录
+            let username = '';
+            r.uname ||= [];
+            if (!r.uname.length) r.uname = [`${args.type}_${r._id}`];
+            for (const uname of r.uname) {
+                const nudoc = await user.getByUname('system', uname);
+                if (!nudoc) {
+                    username = uname;
+                    break;
+                }
+            }
+            if (!username) username = `${r.uname[0]}_${Date.now().toString(36)}`;
+            const set: Partial<Udoc> = { ...r.set };
+            if (r.bio) set.bio = r.bio;
+            if (r.viewLang) set.viewLang = r.viewLang;
+            if (r.avatar) set.avatar = r.avatar;
+            const mail = r.email || `${randomstring(16)}@oauth.invalid`;
+            let uid: number;
+            try {
+                uid = await user.create(mail, username, randomstring(32), undefined, this.request.ip, r.priv);
+            } catch (err) {
+                // 并发注册可能撞上唯一键，换一个稳定后缀重试一次。
+                username = `${username}_${randomstring(6)}`.slice(0, 24);
+                uid = await user.create(mail, username, randomstring(32), undefined, this.request.ip, r.priv);
+            }
+            if (Object.keys(set).length) await user.setById(uid, set);
+            if (Object.keys(r.setInDomain || {}).length) {
+                await domain.setUserInDomain(this.domain._id, uid, r.setInDomain);
+            }
+            await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, uid)));
+            await successfulAuth.call(this, await user.getById('system', uid));
+            this.response.redirect = this.session.oauthRedirect || this.url('homepage');
+            delete this.session.oauthRedirect;
+            return;
+        }
         let username = '';
         r.uname ||= [];
         const mailDomain = r.email.split('@')[1];

@@ -23,6 +23,8 @@ export interface OAuthUserResponse {
     bio?: string;
     uname?: string[];
     viewLang?: string;
+    /** 自动注册时使用的初始系统权限（仅受信 OAuth provider 设置） */
+    priv?: number;
     set?: Record<string, any>;
     setInDomain?: Record<string, any>;
 }
@@ -35,6 +37,8 @@ export interface OAuthProvider {
     get: (this: Handler) => Promise<void>;
     callback: (this: Handler, args: Record<string, any>) => Promise<OAuthUserResponse>;
     canRegister?: boolean;
+    /** 未绑定账号时自动创建 Hydro 用户并登录，跳过密码确认页 */
+    autoRegister?: boolean;
     lockUsername?: boolean;
 }
 

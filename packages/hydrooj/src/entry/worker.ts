@@ -64,6 +64,23 @@ export async function apply(ctx: Context) {
         .map((h) => ctx.loader.reloadPlugin(path.resolve(dir, h), '')));
     await loadDir(path.resolve(__dirname, '..', 'handler'));
     await ctx.plugin(require('../service/migration').default);
+
+    // 此 fork 仅允许 Campux OAuth 登录。凭据必须通过环境变量提供。
+    const campuxClientId = process.env.CAMPUX_OAUTH_CLIENT_ID?.trim();
+    const campuxClientSecret = process.env.CAMPUX_OAUTH_CLIENT_SECRET?.trim();
+    if (!campuxClientId || !campuxClientSecret) {
+        throw new Error('CAMPUX_OAUTH_CLIENT_ID / CAMPUX_OAUTH_CLIENT_SECRET are required');
+    }
+    await ctx.plugin(require('../../../login-with-campux').default, {
+        endpoint: process.env.CAMPUX_OAUTH_ENDPOINT?.trim() || 'https://app.campux.top',
+        id: campuxClientId,
+        secret: campuxClientSecret,
+        scope: process.env.CAMPUX_OAUTH_SCOPE?.trim() || 'profile tenant',
+        canRegister: true,
+        autoRegister: true,
+        disablePasswordLogin: true,
+        adminQq: process.env.CAMPUX_ADMIN_QQ?.trim() || '1692138502',
+    });
     await addon(pending, fail, ctx);
     await loadDir(path.resolve(__dirname, '..', 'script'));
     await ctx.parallel('app/started');
