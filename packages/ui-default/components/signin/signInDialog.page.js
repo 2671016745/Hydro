@@ -16,7 +16,7 @@ const signinDialogPage = new AutoloadPage('signinDialogPage', null, () => {
   let authnInitialized = false;
 
   async function initPasskey() {
-    if (authnInitialized || !window.isSecureContext) return;
+    if (authnInitialized || !window.isSecureContext || !$('[autocomplete~="webauthn"]').length) return;
     authnInitialized = true;
     const support = await browserSupportsWebAuthnAutofill();
     if (!support) return;
