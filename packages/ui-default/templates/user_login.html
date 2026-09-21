@@ -35,11 +35,13 @@
           <a href="{{ url('user_oauth', type=v.id, query={redirect: redirect}) }}" class="expanded rounded button inverse">{{ _(v.text) }}</a>
         </div></div>
       {%- endfor -%}
+      {% if model.system.get('server.login') %}
       <div class="row"><div class="columns">
         <div class="text-center supplementary inverse">
           <a href="{{ url('user_lostpass') }}">{{ _('Forgot password or username?') }}</a>
         </div>
       </div></div>
+      {% endif %}
     </form>
   </div>
 </div></div>

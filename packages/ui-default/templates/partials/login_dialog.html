@@ -45,11 +45,13 @@
           <a href="{{ url('user_oauth', type=v.id, query={redirect: handler.request.path}) }}" class="expanded rounded button">{{ _(v.text) }}</a>
         </div></div>
         {%- endfor -%}
+        {% if model.system.get('server.login') %}
         <div class="row"><div class="columns">
           <div class="supplementary text-center">
             <a {% if not model.system.get('smtp.user') %}data-lostpass href="#"{% else %}href="{{ url('user_lostpass') }}"{% endif %}>{{ _('Forgot password or username?') }}</a>
           </div>
         </div></div>
+        {% endif %}
       </form>
     </div>
   </div>
