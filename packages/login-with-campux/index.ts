@@ -143,8 +143,17 @@ export default class LoginWithCampuxService extends Service {
             }
         });
 
+        ctx.i18n.load('en', {
+            'Login with Campux': 'Continue with Campux',
+        });
         ctx.i18n.load('zh', {
             'Login with Campux': '使用 Campux 校园墙登录',
+        });
+        ctx.i18n.load('zh_TW', {
+            'Login with Campux': '使用 Campux 校園牆登入',
+        });
+        ctx.i18n.load('ko', {
+            'Login with Campux': 'Campux로 계속하기',
         });
         logger.info('Campux OAuth enabled (password login: %s)', config.disablePasswordLogin ? 'disabled' : 'kept');
     }
