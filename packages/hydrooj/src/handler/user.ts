@@ -345,11 +345,13 @@ class UserLostPassHandler extends Handler {
     noCheckPermView = true;
 
     async get() {
+        if (!system.get('server.login')) throw new BuiltinLoginError();
         this.response.template = 'user_lostpass.html';
     }
 
     @param('mail', Types.Email)
     async post(domainId: string, mail: string) {
+        if (!system.get('server.login')) throw new BuiltinLoginError();
         if (!system.get('smtp.user')) throw new SystemError('Cannot send mail');
         const udoc = await user.getByEmail('system', mail);
         if (!udoc) throw new UserNotFoundError(mail);
@@ -380,6 +382,7 @@ class UserLostPassWithCodeHandler extends Handler {
     noCheckPermView = true;
 
     async get({ domainId, code }) {
+        if (!system.get('server.login')) throw new BuiltinLoginError();
         const tdoc = await token.get(code, token.TYPE_LOSTPASS);
         if (!tdoc) throw new InvalidTokenError(token.TYPE_TEXTS[token.TYPE_LOSTPASS], code);
         const udoc = await user.getById(domainId, tdoc.uid);
@@ -391,6 +394,7 @@ class UserLostPassWithCodeHandler extends Handler {
     @param('password', Types.Password)
     @param('verifyPassword', Types.Password)
     async post(domainId: string, code: string, password: string, verifyPassword: string) {
+        if (!system.get('server.login')) throw new BuiltinLoginError();
         const tdoc = await token.get(code, token.TYPE_LOSTPASS);
         if (!tdoc) throw new InvalidTokenError(token.TYPE_TEXTS[token.TYPE_LOSTPASS], code);
         if (password !== verifyPassword) throw new VerifyPasswordError();
