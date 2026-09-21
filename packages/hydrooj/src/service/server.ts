@@ -162,9 +162,12 @@ export async function apply(ctx: Context) {
             translate(str: string) {
                 if (!str) return '';
                 const lang = this.user?.viewLang || this.session?.viewLang;
-                const langs = lang
-                    ? [lang, ...this.context.acceptsLanguages()]
-                    : [...this.context.acceptsLanguages(), system.get('server.language')];
+                const langs = [
+                    lang,
+                    ...this.context.acceptsLanguages(),
+                    'en',
+                    system.get('server.language'),
+                ].filter(Boolean);
                 return cachedTranslate(str.toString(), langs);
             },
             paginate<T>(cursor: FindCursor<T>, page: number, key: string | number) {
