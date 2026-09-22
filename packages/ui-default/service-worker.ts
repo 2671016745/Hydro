@@ -87,14 +87,15 @@ self.addEventListener('notificationclick', (event) => {
   }));
 });
 
-const PRECACHE = 'ui-resources-cache';
-const DO_NOT_PRECACHE = ['.worker.js', 'fonts'];
+const PRECACHE = 'ui-resources-cache-v2';
+const DO_NOT_PRECACHE = ['.worker.js', 'fonts', 'favicon', 'apple-touch-icon', 'android-chrome', 'nav-logo'];
 
 function shouldCachePath(path: string) {
   if (!path.split('?')[0].split('/').pop()) return false;
   if (!path.split('?')[0].split('/').pop().includes('.')) return false;
   if (process.env.NODE_ENV !== 'production' && (path.includes('.hot-update.') || path.includes('?version='))) return false;
   if (path.includes('?v=')) return false;
+  if (DO_NOT_PRECACHE.filter((i) => path.includes(i)).length) return false;
   return true;
 }
 function shouldCache(request: Request) {
@@ -142,11 +143,11 @@ self.addEventListener('install', (event) => event.waitUntil((async () => {
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
-  const valid = [PRECACHE];
+  const valid = [PRECACHE, 'assets'];
   caches.keys().then((names) => names
-    .filter((name) => name.startsWith('precache-'))
     .filter((name) => !valid.includes(name))
     .map((p) => caches.delete(p)));
+  caches.delete('ui-resources-cache');
 });
 
 async function get(request: Request) {
@@ -203,7 +204,7 @@ async function cached(request: Request, cacheKey: string, fetchFunc: () => Promi
 
   if (!shouldCache(request)) return rewritable ? fetchFunc() : fetch(request);
 
-  const results = await Promise.all(targets.map((i) => caches.match(i)));
+  const results = await Promise.all(targets.map((i) => caches.open(cacheKey).then((c) => c.match(i))));
   const found = results.find((i) => i);
   if (found) {
     console.debug('Serve from cache %s <- %s', request.url, found.url);
