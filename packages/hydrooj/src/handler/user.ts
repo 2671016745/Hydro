@@ -527,7 +527,8 @@ class OauthCallbackHandler extends Handler {
             }
             await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, this.user._id)));
             if (r.priv !== undefined) await user.setById(this.user._id, { priv: r.priv });
-            if (r.set && Object.keys(r.set).length) await user.setById(this.user._id, r.set);
+            const { noLocalPassword: _ignored3, ...update3 } = (r.set || {});
+            if (Object.keys(update3).length) await user.setById(this.user._id, update3);
             this.response.redirect = this.session.oauthRedirect || this.url('home_security');
             delete this.session.oauthRedirect;
             return;
@@ -535,7 +536,9 @@ class OauthCallbackHandler extends Handler {
         const effective = existing.find((i) => i);
         if (effective) {
             if (r.priv !== undefined) await user.setById(effective, { priv: r.priv });
-            if (r.set && Object.keys(r.set).length) await user.setById(effective, r.set);
+            // 不覆盖 noLocalPassword，避免已设密码的用户被再次强制设密
+            const { noLocalPassword: _ignored, ...update } = (r.set || {});
+            if (Object.keys(update).length) await user.setById(effective, update);
             const eudoc = await user.getById('system', effective);
             await successfulAuth.call(this, eudoc);
             this.response.redirect = (eudoc as any)._udoc?.noLocalPassword
@@ -548,7 +551,8 @@ class OauthCallbackHandler extends Handler {
         if (udoc) {
             await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, udoc._id)));
             if (r.priv !== undefined) await user.setById(udoc._id, { priv: r.priv });
-            if (r.set && Object.keys(r.set).length) await user.setById(udoc._id, r.set);
+            const { noLocalPassword: _ignored2, ...update2 } = (r.set || {});
+            if (Object.keys(update2).length) await user.setById(udoc._id, update2);
             const mudoc = await user.getById('system', udoc._id);
             await successfulAuth.call(this, mudoc);
             this.response.redirect = (mudoc as any)._udoc?.noLocalPassword
@@ -577,6 +581,8 @@ class OauthCallbackHandler extends Handler {
             if (r.bio) set.bio = r.bio;
             if (r.viewLang) set.viewLang = r.viewLang;
             if (r.avatar) set.avatar = r.avatar;
+            // 仅新建账号需要强制设置本地密码
+            set.noLocalPassword = true;
             const mail = r.email || `${randomstring(16)}@oauth.invalid`;
             let uid: number;
             const preferredUid = Number.isSafeInteger(r.uid) && r.uid >= 2 ? r.uid : undefined;

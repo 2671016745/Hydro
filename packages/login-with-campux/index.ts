@@ -109,7 +109,6 @@ export default class LoginWithCampuxService extends Service {
                     set: {
                         qq,
                         avatar,
-                        noLocalPassword: true,
                         campuxUserId: sub,
                         campuxTenantId: typeof info.tenant_id === 'string' ? info.tenant_id : null,
                         campuxTenantName: typeof info.tenant_name === 'string' ? info.tenant_name : null,
