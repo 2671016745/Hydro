@@ -43,6 +43,8 @@ async function successfulAuth(this: Handler, udoc: User) {
     this.session.scope = PERM.PERM_ALL.toString();
     this.session.oauthBind = null;
     this.session.recreate = true;
+    // OAuth 建号尚无本地密码时，允许本次登录会话内直接设置密码（等同 sudo）
+    if (udoc._id !== 0 && (udoc as any)._udoc?.noLocalPassword) this.session.sudo = Date.now();
     if (udoc._id !== 0) {
         await oplog.log(this, 'user.loginSuccess', { uid: udoc._id });
         await this.ctx.serial('auth/login', this, udoc);
@@ -130,7 +132,7 @@ class UserSudoHandler extends Handler {
             await token.del(authnChallenge, token.TYPE_WEBAUTHN);
         } else if (this.user.tfa && tfa) {
             if (!verifyTFA(this.user._tfa, tfa)) throw new InvalidTokenError('2FA');
-        } else await this.user.checkPassword(password);
+        } else if (!this.user._udoc.noLocalPassword) await this.user.checkPassword(password);
         this.session.sudo = Date.now();
         if (this.session.sudoArgs.method.toLowerCase() !== 'get') {
             this.response.template = 'user_sudo_redirect.html';
@@ -543,10 +545,11 @@ class OauthCallbackHandler extends Handler {
             if (r.avatar) set.avatar = r.avatar;
             const mail = r.email || `${randomstring(16)}@oauth.invalid`;
             let uid: number;
+            const preferredUid = Number.isSafeInteger(r.uid) && r.uid >= 2 ? r.uid : undefined;
             try {
-                uid = await user.create(mail, username, randomstring(32), undefined, this.request.ip, r.priv);
+                uid = await user.create(mail, username, randomstring(32), preferredUid, this.request.ip, r.priv);
             } catch (err) {
-                // 并发注册可能撞上唯一键，换一个稳定后缀重试一次。
+                // 并发注册可能撞上唯一键，换一个稳定后缀并放弃指定 UID 重试一次。
                 username = `${username}_${randomstring(6)}`.slice(0, 24);
                 uid = await user.create(mail, username, randomstring(32), undefined, this.request.ip, r.priv);
             }

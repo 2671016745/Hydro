@@ -23,6 +23,8 @@ export interface OAuthUserResponse {
     bio?: string;
     uname?: string[];
     viewLang?: string;
+    /** 自动注册时指定 Hydro UID（如 QQ 号）；冲突时回退自动分配 */
+    uid?: number;
     /** 自动注册时使用的初始系统权限（仅受信 OAuth provider 设置） */
     priv?: number;
     set?: Record<string, any>;

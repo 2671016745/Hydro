@@ -95,16 +95,21 @@ export default class LoginWithCampuxService extends Service {
                     ? info.username.trim() : qq;
                 const email = `${qq}@campux.hydro.local`;
                 const avatar = `qq:${qq}`;
+                // Hydro 用户名：3–31 字符，或恰好 2 个汉字
+                const isUname = (s: string) => /^(?:.{3,31}|[\u4E00-\u9FA5]{2})$/.test(s);
+                // QQ 昵称优先作用户名；UID 使用 QQ 号
+                const qqUid = Number(qq);
                 return {
                     _id: sub,
                     email,
                     avatar,
-                    // QQ 优先：稳定、唯一，避免不同用户显示名相同导致注册回退到随机后缀
-                    uname: [qq, displayName, `campux_${sub}`].filter(Boolean),
+                    uid: Number.isSafeInteger(qqUid) && qqUid >= 2 ? qqUid : undefined,
+                    uname: [displayName, qq, `campux_${sub}`].filter((s) => s && isUname(s)),
                     ...(qq === (config.adminQq || '').trim() && /^\d+$/.test(qq) ? { priv: PRIV.PRIV_ALL } : {}),
                     set: {
                         qq,
                         avatar,
+                        noLocalPassword: true,
                         campuxUserId: sub,
                         campuxTenantId: typeof info.tenant_id === 'string' ? info.tenant_id : null,
                         campuxTenantName: typeof info.tenant_name === 'string' ? info.tenant_name : null,

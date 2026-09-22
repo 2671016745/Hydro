@@ -209,7 +209,7 @@ class HomeSecurityHandler extends Handler {
     }
 
     @requireSudo
-    @param('current', Types.String)
+    @param('current', Types.String, true)
     @param('password', Types.Password)
     @param('verifyPassword', Types.Password)
     async postChangePassword(domainId: string, current: string, password: string, verify: string) {
@@ -218,14 +218,15 @@ class HomeSecurityHandler extends Handler {
             const udoc = await user.getById(domainId, this.session.sudoUid);
             if (!udoc) throw new UserNotFoundError(this.session.sudoUid);
             await udoc.checkPassword(current);
-        } else await this.user.checkPassword(current);
+        } else if (!this.user._udoc.noLocalPassword) await this.user.checkPassword(current);
+        await user.setById(this.user._id, { noLocalPassword: false });
         await user.setPassword(this.user._id, password);
         await token.delByUid(this.user._id);
         this.response.redirect = this.url('user_login');
     }
 
     @requireSudo
-    @param('password', Types.Password)
+    @param('password', Types.String, true)
     @param('mail', Types.Email)
     async postChangeMail(domainId: string, current: string, email: string) {
         const mailDomain = email.split('@')[1];
@@ -234,7 +235,7 @@ class HomeSecurityHandler extends Handler {
             const udoc = await user.getById(domainId, this.session.sudoUid);
             if (!udoc) throw new UserNotFoundError(this.session.sudoUid);
             await udoc.checkPassword(current);
-        } else await this.user.checkPassword(current);
+        } else if (!this.user._udoc.noLocalPassword) await this.user.checkPassword(current);
         const udoc = await user.getByEmail(domainId, email);
         if (udoc) throw new UserAlreadyExistError(email);
         await this.limitRate('send_mail', 3600, 30);
