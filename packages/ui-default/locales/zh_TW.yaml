@@ -40,6 +40,8 @@ Copy failed :(: 複製失敗 :(
 Join {0}: 加入 {0}
 'No': 否
 'Sign in with Campux.': Campux 直接登入。
+'Please set a password for your account. You can use it for sensitive operations.': 請為帳號設定登入密碼，之後可用於改密等敏感操作。
+'Set Password': 設定密碼
 'Note: Problem title may not be hidden.': 注意：題目標題可能不會被隱藏。
 'Or use the following link:': 或使用以下連結：
 'Sign in with your Campux account.': 使用你的 Campux 帳號登入。

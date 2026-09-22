@@ -67,6 +67,8 @@ user_login: Login
 user_logout: Logout
 user_lostpass: Lost Password
 'Sign in with Campux.': Sign in with Campux.
+'Set Password': Set Password
+'Please set a password for your account. You can use it for sensitive operations.': Please set a password for your account. You can use it for sensitive operations.
 'Sign in with your Campux account.': Sign in with your Campux account.
 user_register: Register
 wiki_help: Help

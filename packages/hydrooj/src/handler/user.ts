@@ -343,6 +343,34 @@ class UserRegisterWithCodeHandler extends Handler {
     }
 }
 
+class UserSetPasswordHandler extends Handler {
+    noCheckPermView = true;
+
+    async get() {
+        if (!this.user._id) throw new ForbiddenError();
+        if (!this.user._udoc.noLocalPassword) {
+            this.response.redirect = this.url('homepage');
+            return;
+        }
+        this.response.template = 'user_setpass.html';
+    }
+
+    @param('password', Types.Password)
+    @param('verifyPassword', Types.Password)
+    async post(domainId: string, password: string, verify: string) {
+        if (!this.user._id) throw new ForbiddenError();
+        if (password !== verify) throw new VerifyPasswordError();
+        if (!this.user._udoc.noLocalPassword) {
+            this.response.redirect = this.url('homepage');
+            return;
+        }
+        await user.setById(this.user._id, { noLocalPassword: false });
+        await user.setPassword(this.user._id, password);
+        this.session.sudo = null;
+        this.response.redirect = this.url('homepage');
+    }
+}
+
 class UserLostPassHandler extends Handler {
     noCheckPermView = true;
 
@@ -508,8 +536,11 @@ class OauthCallbackHandler extends Handler {
         if (effective) {
             if (r.priv !== undefined) await user.setById(effective, { priv: r.priv });
             if (r.set && Object.keys(r.set).length) await user.setById(effective, r.set);
-            await successfulAuth.call(this, await user.getById('system', effective));
-            this.response.redirect = this.session.oauthRedirect || this.url('homepage');
+            const eudoc = await user.getById('system', effective);
+            await successfulAuth.call(this, eudoc);
+            this.response.redirect = (eudoc as any)._udoc?.noLocalPassword
+                ? this.url('user_setpass')
+                : (this.session.oauthRedirect || this.url('homepage'));
             delete this.session.oauthRedirect;
             return;
         }
@@ -518,8 +549,11 @@ class OauthCallbackHandler extends Handler {
             await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, udoc._id)));
             if (r.priv !== undefined) await user.setById(udoc._id, { priv: r.priv });
             if (r.set && Object.keys(r.set).length) await user.setById(udoc._id, r.set);
-            await successfulAuth.call(this, await user.getById('system', udoc._id));
-            this.response.redirect = this.session.oauthRedirect || this.url('homepage');
+            const mudoc = await user.getById('system', udoc._id);
+            await successfulAuth.call(this, mudoc);
+            this.response.redirect = (mudoc as any)._udoc?.noLocalPassword
+                ? this.url('user_setpass')
+                : (this.session.oauthRedirect || this.url('homepage'));
             delete this.session.oauthRedirect;
             return;
         }
@@ -558,8 +592,11 @@ class OauthCallbackHandler extends Handler {
                 await domain.setUserInDomain(this.domain._id, uid, r.setInDomain);
             }
             await Promise.all(ids.map((i) => this.ctx.oauth.set(args.type, i, uid)));
-            await successfulAuth.call(this, await user.getById('system', uid));
-            this.response.redirect = this.session.oauthRedirect || this.url('homepage');
+            const nudoc = await user.getById('system', uid);
+            await successfulAuth.call(this, nudoc);
+            this.response.redirect = (nudoc as any)._udoc?.noLocalPassword
+                ? this.url('user_setpass')
+                : (this.session.oauthRedirect || this.url('homepage'));
             delete this.session.oauthRedirect;
             return;
         }
@@ -681,8 +718,30 @@ declare module '@hydrooj/framework' {
 }
 
 export async function apply(ctx: Context) {
+    // OAuth 建号尚无本地密码时，强制先设置密码，避免用户找不到随机密码
+    ctx.on('handler/create/http', (h: Handler) => {
+        const originalPrepare = (h as any).prepare;
+        (h as any).prepare = async function prepare(this: Handler, ...args: any[]) {
+            if (typeof originalPrepare === 'function') {
+                const ret = await originalPrepare.apply(this, args);
+                if (ret === 'cleanup') return ret;
+            }
+            const u = this.user as any;
+            if (!u?._id || !u?._udoc?.noLocalPassword) return;
+            const path = this.request.path;
+            const allow = [
+                '/user/setpass', '/logout', '/user/login', '/login',
+                '/user/oauth', '/oauth/', '/user/webauthn', '/user/tfa',
+                '/api/', '/resource/', '/fs/', '/file', '/favicon',
+            ];
+            if (allow.some((p) => path.startsWith(p))) return;
+            this.response.redirect = this.url('user_setpass');
+            return 'cleanup';
+        };
+    });
     ctx.Route('user_login', '/login', UserLoginHandler);
     ctx.Route('user_oauth', '/oauth/:type/login', OauthHandler);
+    ctx.Route('user_setpass', '/user/setpass', UserSetPasswordHandler, PRIV.PRIV_USER_PROFILE);
     ctx.Route('user_sudo', '/user/sudo', UserSudoHandler, PRIV.PRIV_USER_PROFILE);
     ctx.Route('user_tfa', '/user/tfa', UserTFAHandler);
     ctx.Route('user_webauthn', '/user/webauthn', UserWebauthnHandler);
