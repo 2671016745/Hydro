@@ -13,11 +13,13 @@
   <meta http-equiv="X-UA-Compatible" content="chrome=1"/>
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
 
-  <link rel="apple-touch-icon" sizes="180x180" href="{{ UiContext.cdn_prefix }}apple-touch-icon-180x180.png">
-  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-32x32.png" sizes="32x32">
-  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}android-chrome-192x192.png" sizes="192x192">
-  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-96x96.png" sizes="96x96">
-  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-16x16.png" sizes="16x16">
+  {% set assetV = UiContext.constantVersion|default(global.Hydro.version['ui-default']) %}
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ UiContext.cdn_prefix }}apple-touch-icon-180x180.png?v={{ assetV }}">
+  <link rel="icon" type="image/x-icon" href="{{ UiContext.cdn_prefix }}favicon.ico?v={{ assetV }}">
+  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-32x32.png?v={{ assetV }}" sizes="32x32">
+  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}android-chrome-192x192.png?v={{ assetV }}" sizes="192x192">
+  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-96x96.png?v={{ assetV }}" sizes="96x96">
+  <link rel="icon" type="image/png" href="{{ UiContext.cdn_prefix }}favicon-16x16.png?v={{ assetV }}" sizes="16x16">
   {% if handler.context.request.url %}<link rel="canonical" href="{{ model.system.get('server.url') }}{{ handler.context.request.url.substring(1) }}">{% endif %}
   <meta name="theme-color" content="#56758f">
   {% block ogp_site %}
@@ -39,7 +41,6 @@
       #panel { display: flex; flex-direction: column; }
     {% endif %}
   </style>
-  {% set assetV = UiContext.constantVersion|default(global.Hydro.version['ui-default']) %}
   {% if process.env.DEV %}
     <script src="/default.theme.js?version={{ global.Hydro.version['ui-default'] }}"></script>
     <link rel="stylesheet" media="all" href="/theme-{{ global.Hydro.version['ui-default'] }}.css?v={{ assetV }}">

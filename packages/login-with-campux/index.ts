@@ -6,8 +6,8 @@ import { pkceChallenge, randomVerifier } from './pkce';
 
 const logger = new Logger('oauth.campux');
 
-// Campux 聚合登录主图标（橙色账号卡片，单路径简化版）
-const icon = '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="#FF8E12" d="M3 4.5A1.5 1.5 0 0 1 4.5 3h15A1.5 1.5 0 0 1 21 4.5v11A1.5 1.5 0 0 1 19.5 17h-15A1.5 1.5 0 0 1 3 15.5v-11zM12 7.5a3 3 0 1 0 0 6 3 3 0 0 0 0-6zM7 18.5c0-2.2 2.2-4 5-4s5 1.8 5 4v1H7v-1z"/></svg>';
+// Campux 官方标识（精简内联版，完整资源见 /img/campux-logo.svg）
+const icon = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#0072D3" d="M32 6C16.5 6 8 18 8 34v18h14V33c0-8 4-14 12-14s12 6 12 14v19h14V34C60 18 47.5 6 32 6z"/><path fill="#0190E7" d="M22 52h28v6H22z"/><circle cx="32" cy="33" r="5" fill="#27D6FE"/></svg>';
 
 type CampuxUserInfo = {
     sub: string;
