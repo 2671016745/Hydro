@@ -19,7 +19,7 @@ CAMPUX_OAUTH_CLIENT_ID=
 CAMPUX_OAUTH_CLIENT_SECRET=
 
 # OAuth scope
-CAMPUX_OAUTH_SCOPE=profile tenant
+CAMPUX_OAUTH_SCOPE=profile
 
 # 自动授予 Hydro 超级管理员的 QQ 号
 CAMPUX_ADMIN_QQ=1692138502
@@ -55,7 +55,7 @@ http://192.168.18.11:8888/oauth/campux/callback
 | Token URL | `{endpoint}/oauth/token` |
 | UserInfo URL | `{endpoint}/oauth/userinfo` |
 | PKCE | `S256`（插件自动生成 code_verifier / code_challenge） |
-| Scope | `profile tenant` |
+| Scope | `profile` |
 
 ## UserInfo 约定
 

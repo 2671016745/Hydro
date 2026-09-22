@@ -75,7 +75,7 @@ export async function apply(ctx: Context) {
         endpoint: process.env.CAMPUX_OAUTH_ENDPOINT?.trim() || 'https://app.campux.top',
         id: campuxClientId,
         secret: campuxClientSecret,
-        scope: process.env.CAMPUX_OAUTH_SCOPE?.trim() || 'profile tenant',
+        scope: process.env.CAMPUX_OAUTH_SCOPE?.trim() || 'profile',
         canRegister: true,
         autoRegister: true,
         disablePasswordLogin: true,

@@ -24,7 +24,7 @@
 CAMPUX_OAUTH_ENDPOINT=https://app.campux.top
 CAMPUX_OAUTH_CLIENT_ID=<Campux 后台创建的 Client ID>
 CAMPUX_OAUTH_CLIENT_SECRET=<Campux 后台创建的 Client Secret>
-CAMPUX_OAUTH_SCOPE=profile tenant
+CAMPUX_OAUTH_SCOPE=profile
 CAMPUX_ADMIN_QQ=1692138502
 ```
 
@@ -33,7 +33,7 @@ CAMPUX_ADMIN_QQ=1692138502
 | `CAMPUX_OAUTH_ENDPOINT` | Campux 站点地址 | `https://app.campux.top` |
 | `CAMPUX_OAUTH_CLIENT_ID` | OAuth Client ID | 必填 |
 | `CAMPUX_OAUTH_CLIENT_SECRET` | OAuth Client Secret | 必填 |
-| `CAMPUX_OAUTH_SCOPE` | OAuth scope | `profile tenant` |
+| `CAMPUX_OAUTH_SCOPE` | OAuth scope | `profile` |
 | `CAMPUX_ADMIN_QQ` | 自动授予超级管理员的 QQ 号 | `1692138502` |
 
 环境变量可写入系统环境、`.hydro/env`，或在启动脚本中导出。
@@ -60,7 +60,7 @@ Campux OAuth 应用建议配置：
 | Token URL | `/oauth/token` |
 | UserInfo URL | `/oauth/userinfo` |
 | PKCE | `S256`（插件自动处理） |
-| Scope | `profile tenant` |
+| Scope | `profile` |
 
 同时把 Hydro 的 `server.url` 设置为以 `/` 结尾的对外访问地址，例如：
 
