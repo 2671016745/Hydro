@@ -39,7 +39,7 @@ __langname: 简体中文
 'Hello! You can click following link to sign up your {0} account:': 您好！您可以点击以下链接来注册您的 {0} 账户：
 'Join {0}': '加入 {0}'
 'No': 否
-'New Campux users can sign in directly.': 新 Campux 用户可直接登录。
+'Sign in with Campux.': Campux 直接登录。
 'Note: Problem title may not be hidden.': 注意：题目标题可能不会被隐藏。
 'Or use the following link:': 或使用以下链接：
 'Sign in with your Campux account.': 使用你的 Campux 账号登录。
