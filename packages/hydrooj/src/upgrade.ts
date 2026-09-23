@@ -46,7 +46,7 @@ export const coreScripts: MigrationScript[] = [
             await user.create('Hydro@hydro.local', 'Hydro', randomstring(32), 1, '127.0.0.1', PRIV.PRIV_USER_PROFILE);
         }
         const ddoc = await domain.get('system');
-        if (!ddoc) await domain.add('system', 1, '桂林市奎光学校编程学习在线测评平台', 'Welcome to Hydro!');
+        if (!ddoc) await domain.add('system', 1, '奎光', 'Welcome to Hydro!');
         await welcome();
         return true;
     },
