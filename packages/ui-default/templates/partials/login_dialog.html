@@ -49,3 +49,14 @@
     </div>
   </div>
 </div>
+<script>
+  // OAuth-only：旧脚本可能尝试 WebAuthn 自动填充并弹出误导性错误，按特征屏蔽
+  new MutationObserver((records) => {
+    for (const record of records) {
+      for (const node of record.addedNodes) {
+        if (node.nodeType !== Node.ELEMENT_NODE || !node.textContent.includes('autocomplete` attribute was detected')) continue;
+        node.closest('.mantine-Notification-root')?.remove();
+      }
+    }
+  }).observe(document.body, { childList: true, subtree: true });
+</script>
