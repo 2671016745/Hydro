@@ -317,7 +317,7 @@ SystemSetting(Schema.object({
         allowInvite: Schema.boolean().default(true).description('Allow invite users'),
         showDefaultRole: Schema.boolean().default(false).description('Show default role users in domain user management'),
         center: Schema.string().default('https://hydro.ac/center').description('Server Center').role('url').hidden(),
-        name: Schema.string().default('Hydro').description('Server Name'),
+        name: Schema.string().default('桂林市奎光学校编程学习在线测评平台').description('Server Name'),
         url: Schema.string().default('/').description('Server BaseURL'),
         upload: Schema.string().default('256m').description('Max upload file size'),
         cdn: Schema.string().default('/').description('CDN Prefix'),
