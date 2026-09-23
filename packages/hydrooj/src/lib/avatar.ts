@@ -18,9 +18,10 @@ function avatar(src: string, size = 64, fallback = '') {
         src = fallback;
         index = src.indexOf(':');
     }
-    if (index === -1) return providers.gravatar('', size);
+    // 空头像不走 Gravatar，避免外网图床加载失败
+    if (index === -1) return '/img/avatar.png';
     const [provider, str] = [src.substring(0, index), src.substring(index + 1, src.length)];
-    if (!providers[provider] || !str) return providers.gravatar('', size);
+    if (!providers[provider] || !str) return '/img/avatar.png';
     return providers[provider](str, size);
 }
 
