@@ -1,6 +1,5 @@
 import { Context, Service } from '../context';
 import { SystemKeys } from '../interface';
-import { ensureSystemBranding } from '../lib/brand';
 import { serviceInstance } from '../utils';
 import { SYSTEM_SETTINGS } from './setting';
 
@@ -67,7 +66,6 @@ class SystemModelService extends Service {
         const config = await this.coll.find().toArray();
         for (const i of config) this.cache[i._id] = i.value;
         // fork branding: never leave nav logo / site name empty across restarts
-        await ensureSystemBranding(this);
         this.ctx.emit('database/config');
         return this.ctx.on('system/setting', (args) => {
             for (const key in args) this.cache[key] = args[key];

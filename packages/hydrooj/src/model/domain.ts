@@ -7,7 +7,6 @@ import bus from '../service/bus';
 import db from '../service/db';
 import { MaybeArray, NumberKeys } from '../typeutils';
 import { ArgMethod } from '../utils';
-import { ensureDomainBranding } from '../lib/brand';
 import { BUILTIN_ROLES, PRIV } from './builtin';
 import UserModel, { deleteUserCache } from './user';
 
@@ -315,10 +314,6 @@ class DomainModel {
 }
 
 export async function apply(ctx: Context) {
-    await ensureDomainBranding(coll, () => {
-        cache.delete('id::system');
-        cache.delete('host::');
-    });
     ctx.on('domain/delete-cache', async (domainId: string) => {
         const ddoc = await DomainModel.get(domainId);
         if (!ddoc) return;
