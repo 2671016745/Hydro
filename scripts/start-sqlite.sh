@@ -38,6 +38,7 @@ NODE
 node data/set-hydro-lan.js || true
 node data/set-site-name.js || true
 node data/set-domain-avatar.js || true
+node data/apply-brand-settings.js || true
 
 if [[ -f scripts/env.campux ]]; then
   set -a

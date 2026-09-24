@@ -1,5 +1,6 @@
 import { Context, Service } from '../context';
 import { SystemKeys } from '../interface';
+import { ensureSystemBranding } from '../lib/brand';
 import { serviceInstance } from '../utils';
 import { SYSTEM_SETTINGS } from './setting';
 
@@ -46,17 +47,10 @@ class SystemModelService extends Service {
     async set<K extends keyof SystemKeys>(_id: K, value: SystemKeys[K], broadcast?: boolean): Promise<SystemKeys[K]>;
     async set<K>(_id: string, value: K, broadcast?: boolean): Promise<K>;
     async set(_id: string, value: any, broadcast = true) {
+        this.cache[_id] = value;
         if (broadcast) this.ctx.broadcast('system/setting', { [_id]: value });
-        const res = await this.coll.findOneAndUpdate(
-            { _id },
-            { $set: { value } },
-            { upsert: true, returnDocument: 'after' },
-        );
-        // drivers may return the doc or { value: doc }
-        const doc = (res && (res as any)._id !== undefined) ? res : ((res as any)?.value ?? { value });
-        const stored = (doc as any)?.value ?? value;
-        this.cache[_id] = stored;
-        return stored;
+        await this.coll.updateOne({ _id }, { $set: { value } }, { upsert: true });
+        return value;
     }
 
     async del(_id: string, broadcast = true): Promise<boolean> {
@@ -72,6 +66,8 @@ class SystemModelService extends Service {
         }
         const config = await this.coll.find().toArray();
         for (const i of config) this.cache[i._id] = i.value;
+        // fork branding: never leave nav logo / site name empty across restarts
+        await ensureSystemBranding(this);
         this.ctx.emit('database/config');
         return this.ctx.on('system/setting', (args) => {
             for (const key in args) this.cache[key] = args[key];
