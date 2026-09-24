@@ -337,6 +337,22 @@ export class SqliteCursor<T extends Doc = Doc> {
         for (const d of this.materialize()) fn(d);
     }
 
+    withReadPreference() {
+        return this;
+    }
+
+    hint() {
+        return this;
+    }
+
+    maxTimeMS() {
+        return this;
+    }
+
+    comment() {
+        return this;
+    }
+
     [Symbol.asyncIterator]() {
         const list = this.materialize();
         let i = 0;
@@ -686,24 +702,30 @@ export class SqliteCollection<T extends Doc = Doc> {
         const hit = all.find((d) => matches(d, filter));
         if (!hit) {
             if (options.upsert) {
-                const inserted = await this.insertOne(typeof update.$set === 'object' ? { ...filter, ...update.$set } : {});
-                return { value: null, upsertedId: inserted.insertedId, lastErrorObject: { n: 0, updatedExisting: false, upserted: inserted.insertedId } };
+                const base: Doc = typeof update.$set === 'object' ? { ...filter, ...update.$set } : {};
+                applyUpdate(base, update);
+                if (!base._id) base._id = new ObjectId();
+                this.save(String(base._id), base);
+                return options.includeResultMetadata
+                    ? { value: null, upsertedId: base._id }
+                    : base;
             }
-            return { value: null, lastErrorObject: { n: 0, updatedExisting: false } };
+            return options.includeResultMetadata ? { value: null } : null;
         }
         const before = { ...hit };
         applyUpdate(hit, update);
         this.save(String(hit._id), hit);
         const value = options.returnDocument === 'before' ? before : hit;
-        return { value, lastErrorObject: { n: 1, updatedExisting: true } };
+        // Hydro treats the return as the document (driver default when includeResultMetadata is false).
+        return options.includeResultMetadata ? { value } : value;
     }
 
     async findOneAndDelete(filter: Filter, options: Doc = {}) {
         const all = this.loadAll();
         const hit = all.find((d) => matches(d, filter));
-        if (!hit) return { value: null };
+        if (!hit) return options.includeResultMetadata ? { value: null } : null;
         this.removeIds([String(hit._id)]);
-        return { value: hit };
+        return options.includeResultMetadata ? { value: hit } : hit;
     }
 
     async findOneAndReplace(filter: Filter, replacement: Doc, options: Doc = {}) {
@@ -723,6 +745,33 @@ export class SqliteCollection<T extends Doc = Doc> {
 
     async createIndex(key: any, options: any = {}) {
         return this.createIndexes([{ key, ...options }]);
+    }
+
+    watch() {
+        // SQLite has no change streams. Emit `error` so Hydro falls back to polling.
+        const handlers: Record<string, Function[]> = { change: [], error: [] };
+        const api = {
+            on(event: string, fn: Function) {
+                if (handlers[event]) handlers[event].push(fn);
+                return api;
+            },
+            once(event: string, fn: Function) {
+                return api.on(event, fn);
+            },
+            close: async () => undefined,
+            stream: null,
+            [Symbol.asyncIterator]() {
+                return { next: async () => ({ done: true, value: undefined }) };
+            },
+        };
+        setTimeout(() => {
+            for (const fn of handlers.error) {
+                try {
+                    fn(new Error('sqlite: change streams unsupported'));
+                } catch { /* ignore */ }
+            }
+        }, 0);
+        return api;
     }
 
     async listIndexes() {
