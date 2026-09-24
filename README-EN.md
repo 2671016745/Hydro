@@ -132,6 +132,23 @@ Production: persistent Mongo, real `server.url`, Campux allowlist for prod host,
 
 ---
 
+
+<details>
+<summary><strong>7. SQLite mode (this branch: feat/sqlite-db)</strong></summary>
+
+Use **SQLite instead of MongoDB** for single-node school deployments.
+
+```bash
+scripts/start-sqlite.sh              # default DB: data/hydro.db
+scripts/start-sqlite.sh /path/oj.db
+```
+
+Or set `~/.hydro/config.json` `"url": "sqlite:///abs/path/hydro.db"`, or `HYDRO_DB=sqlite`.
+
+Implementation: `packages/hydrooj/src/service/sqlite.ts` + `db.ts` URL switch. Supports common CRUD, query/update operators, and limited aggregation. Indexes are metadata-only — use MongoDB for large data.
+
+</details>
+
 The remainder is the upstream Hydro English readme.
 
 

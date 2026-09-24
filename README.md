@@ -251,6 +251,52 @@ corepack yarn tsc -b packages/hydrooj/tsconfig.json packages/login-with-campux/t
 
 ---
 
+
+<details>
+<summary><strong>10. SQLite 模式（本分支 feat/sqlite-db）</strong></summary>
+
+本分支支持 **用 SQLite 替代 MongoDB** 做持久化，适合单机校园部署（无需再装 Mongo）。
+
+### 启用
+
+```bash
+# 一键（推荐）
+scripts/start-sqlite.sh              # 默认库文件 data/hydro.db
+scripts/start-sqlite.sh /path/oj.db
+
+# 或手动改 ~/.hydro/config.json
+#   "url": "sqlite:///绝对路径/hydro.db"
+# 或
+#   export HYDRO_DB=sqlite
+#   export HYDRO_SQLITE_PATH=/path/hydro.db
+```
+
+Windows 可在 `data/start-hydro.cmd` 前把 `config.json` 的 `url` 写成 `sqlite://D:/path/hydro.db`，并去掉内存 Mongo 步骤。
+
+### 实现说明
+
+- 驱动：Node 内置 `node:sqlite` + `bson`（EJSON 保留 Date / ObjectId）
+- 适配层：`packages/hydrooj/src/service/sqlite.ts`（Mongo 风格 collection API）
+- 入口：`packages/hydrooj/src/service/db.ts` 在 `url` 以 `sqlite:` 开头时走 SQLite
+- 自检：`node .cache/ts-out/packages/hydrooj/service/sqlite.smoke.js`（需先 `tsc -p packages/hydrooj`）
+
+### 能力 / 限制
+
+| 支持 | 说明 |
+|------|------|
+| find / findOne / insert / update / delete | 常用操作 |
+| 操作符 | `$eq $ne $gt $gte $lt $lte $in $nin $exists $regex $and $or $nor $size $all $elemMatch` |
+| 更新 | `$set $unset $inc $push $pull $addToSet $pop` |
+| 排序 / skip / limit / projection | 有 |
+| findOneAndUpdate / upsert | 有 |
+| aggregate | `$match $project $unwind $group $sort $limit $skip $count` 及 `$min $max $sum $avg $first $last $push $addToSet`、`$objectToArray` |
+| 索引 | **仅元数据**（查询仍在内存匹配）；数据量大时请继续用 MongoDB |
+| 全文检索 / 分片 / 副本集 | **不支持** |
+
+> 评估：班级/校级题库与用户量（几百～几千）可用 SQLite；再大或要复杂聚合请用 MongoDB。
+
+</details>
+
 以下为上游 Hydro 原始自述文档内容。
 
 

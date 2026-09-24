@@ -3,12 +3,14 @@ import {
     Collection, Db, FindCursor, IndexDescription, MongoClient,
 } from 'mongodb';
 import mongoUri from 'mongodb-uri';
+import path from 'path';
 import { Time } from '@hydrooj/utils';
 import { Context, Service } from '../context';
 import { ValidationError } from '../error';
 import { Logger } from '../logger';
 import { load } from '../options';
 import bus from './bus';
+import { SqliteDatabase, SqliteCollection, SqliteCursor, parseSqliteUrl } from './sqlite';
 
 const logger = new Logger('mongo');
 export interface Collections { }
@@ -33,11 +35,16 @@ declare module 'cordis' {
 }
 
 export class MongoService extends Service {
-    public client: MongoClient;
-    public db: Db;
+    public client: MongoClient | null = null;
+    public db: Db | null = null;
+    public sqlite: SqliteDatabase | null = null;
 
     constructor(ctx: Context, private config: MongoConfig = {}) {
         super(ctx, 'db');
+    }
+
+    static isSqliteUrl(url: string) {
+        return !!url && (url.startsWith('sqlite:') || url.startsWith('sqlite://'));
     }
 
     static async getUrl() {
@@ -48,6 +55,11 @@ export class MongoService extends Service {
         }
         const opts = load();
         if (!opts) return null;
+        // explicit sqlite shortcut
+        if (process.env.HYDRO_DB === 'sqlite') {
+            const file = process.env.HYDRO_SQLITE_PATH || path.resolve(process.cwd(), 'data', 'hydro.db');
+            return `sqlite://${file}`;
+        }
         let mongourl = `${opts.protocol || 'mongodb'}://`;
         if (opts.username) mongourl += `${opts.username}:${encodeURIComponent(opts.password)}@`;
         mongourl += `${opts.host}:${opts.port}/${opts.name}`;
@@ -57,6 +69,14 @@ export class MongoService extends Service {
 
     async *[Service.init]() {
         const mongourl = await MongoService.getUrl();
+        if (MongoService.isSqliteUrl(mongourl || '')) {
+            const file = parseSqliteUrl(mongourl!);
+            this.sqlite = new SqliteDatabase(file);
+            yield () => this.sqlite.close();
+            await bus.parallel('database/connect', this.sqlite as any);
+            yield this.ctx.interval(() => this.fixExpireAfter(), Time.hour);
+            return;
+        }
         const url = mongoUri.parse(mongourl);
         this.client = await MongoClient.connect(mongourl);
         yield () => this.client.close();
@@ -65,13 +85,19 @@ export class MongoService extends Service {
         yield this.ctx.interval(() => this.fixExpireAfter(), Time.hour);
     }
 
-    public collection<K extends keyof Collections>(c: K) {
+    public get backend() {
+        return this.sqlite || this.db;
+    }
+
+    public collection<K extends keyof Collections>(c: K): any {
         let coll = this.config.prefix ? `${this.config.prefix}.${c}` : c;
         if (this.config.collectionMap?.[coll]) coll = this.config.collectionMap[coll];
+        if (this.sqlite) return this.sqlite.collection(coll) as any;
         return this.db.collection<Collections[K]>(coll);
     }
 
     public async fixExpireAfter() {
+        if (this.sqlite) return;
         // Sometimes mongo's expireAfterSeconds is not working in non-replica set mode;
         const collections = await this.db.listCollections().toArray();
         const ignore = ['system.profile', 'system.users', 'system.version', 'system.views'];
@@ -89,6 +115,7 @@ export class MongoService extends Service {
 
     public async clearIndexes<T>(coll: Collection<T>, dropIndex?: string[]) {
         if (process.env.NODE_APP_INSTANCE !== '0') return;
+        if (this.sqlite) return;
         let existed: any[];
         try {
             existed = await coll.listIndexes().toArray();
@@ -106,6 +133,10 @@ export class MongoService extends Service {
 
     public async ensureIndexes<T>(coll: Collection<T>, ...args: IndexDescription[]) {
         if (process.env.NODE_APP_INSTANCE !== '0') return;
+        if (this.sqlite) {
+            await (coll as any).createIndexes?.(args);
+            return;
+        }
         let existed: any[];
         try {
             existed = await coll.listIndexes().toArray();
@@ -151,9 +182,20 @@ export class MongoService extends Service {
     }
 
     async paginate<T>(
-        cursor: FindCursor<T>, page: number, pageSize: number,
+        cursor: FindCursor<T> | SqliteCursor<T> | any, page: number, pageSize: number,
     ): Promise<[docs: T[], numPages: number, count: number]> {
         if (page <= 0) throw new ValidationError('page');
+        if (this.sqlite) {
+            const filter = cursor.cursorFilter || {};
+            const collName = cursor.namespace?.collection;
+            const coll = this.collection(collName as any);
+            const [count, pageDocs] = await Promise.all([
+                Object.keys(filter).length ? coll.count(filter) : coll.countDocuments(filter),
+                cursor.skip((page - 1) * pageSize).limit(pageSize).toArray(),
+            ]);
+            const numPages = Math.floor((count + pageSize - 1) / pageSize);
+            return [pageDocs, numPages, count];
+        }
         // this is for mongodb driver v6
         const filter = (cursor as any).cursorFilter;
         const coll = this.db.collection(cursor.namespace.collection as any);
@@ -165,7 +207,7 @@ export class MongoService extends Service {
         return [pageDocs, numPages, count];
     }
 
-    async ranked<T extends Record<string, any>>(cursor: T[] | FindCursor<T>, equ: (a: T, b: T) => boolean): Promise<[number, T][]> {
+    async ranked<T extends Record<string, any>>(cursor: T[] | FindCursor<T> | SqliteCursor<T> | any, equ: (a: T, b: T) => boolean): Promise<[number, T][]> {
         let last = null;
         let r = 0;
         let count = 0;
