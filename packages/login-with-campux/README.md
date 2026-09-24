@@ -27,24 +27,24 @@ CAMPUX_ADMIN_QQ=1692138502
 
 缺少 `CAMPUX_OAUTH_CLIENT_ID` 或 `CAMPUX_OAUTH_CLIENT_SECRET` 时，worker 启动会失败。
 
-## 回调地址
+## 回调地址（redirect_uri）
 
-必须在 Campux OAuth 应用中登记 Hydro 回调地址：
+插件按 **当前浏览器访问的 Host** 生成 `redirect_uri`（含 `X-Forwarded-Proto` 时用 https），并在 token 交换时复用同一值。
+
+因此：**每一个你会用来打开 OJ 的地址**，其 callback 都必须登记进 Campux OAuth 应用 allowlist：
 
 ```text
-https://<hydro-domain>/oauth/campux/callback
+http://127.0.0.1:8888/oauth/campux/callback
+http://<当前局域网IP>:8888/oauth/campux/callback
+https://<正式域名>/oauth/campux/callback
 ```
 
-并把 Hydro 的 `server.url` 配置为以 `/` 结尾的对外地址，例如：
+> 局域网 IP 变化（例如 `192.168.18.11` → `192.168.18.3`）后，必须把 **新 IP** 的 callback 加进 allowlist，否则会报「redirect_uri 未在应用中注册」。
+
+`server.url` 仍建议以 `/` 结尾，作为无 Host 时的回退：
 
 ```text
-https://oj.example.com/
-```
-
-本地调试时可使用局域网地址，例如：
-
-```text
-http://<局域网IP>:8888/oauth/campux/callback
+http://192.168.18.3:8888/
 ```
 
 ## Campux OAuth 应用配置

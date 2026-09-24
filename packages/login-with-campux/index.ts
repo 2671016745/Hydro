@@ -6,6 +6,16 @@ import { pkceChallenge, randomVerifier } from './pkce';
 
 const logger = new Logger('oauth.campux');
 
+/** 用当前请求 Host 生成 callback，保证与 Campux 应用登记的 redirect_uri 一致。 */
+function resolveRedirectUri(handler: Handler): string {
+    const protoHeader = String(handler.request.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
+    const proto = protoHeader || (handler.request.headers?.['x-forwarded-ssl'] ? 'https' : 'http');
+    const host = String(handler.request.host || '').trim();
+    const fallback = String(SystemModel.get('server.url') || '').replace(/\/+$/, '/');
+    if (host) return `${proto}://${host}/oauth/campux/callback`;
+    return `${fallback}oauth/campux/callback`;
+}
+
 // Campux 官方标识（精简内联版，完整资源见 /img/campux-logo.svg）
 const icon = '<svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path fill="#0072D3" d="M32 6C16.5 6 8 18 8 34v18h14V33c0-8 4-14 12-14s12 6 12 14v19h14V34C60 18 47.5 6 32 6z"/><path fill="#0190E7" d="M22 52h28v6H22z"/><circle cx="32" cy="33" r="5" fill="#27D6FE"/></svg>';
 
@@ -23,7 +33,7 @@ type CampuxUserInfo = {
 export default class LoginWithCampuxService extends Service {
     static inject = ['oauth', 'db', 'model:system'];
     static Config = Schema.object({
-        endpoint: Schema.string().description('Campux 站点地址，如 https://app.campux.top').required(),
+        endpoint: Schema.string().description('Campux 站点地址，如 https://kg.campux.top').required(),
         id: Schema.string().description('Campux OAuth Client ID').required(),
         secret: Schema.string().description('Campux OAuth Client Secret').role('secret').required(),
         scope: Schema.string().description('OAuth scope').default('profile'),
@@ -54,8 +64,8 @@ export default class LoginWithCampuxService extends Service {
                     throw new UserFacingError('OAuth state does not match this browser session');
                 }
                 delete this.session.oauthCampuxState;
-                const serverUrl = String(SystemModel.get('server.url') || '').replace(/\/+$/, '/');
-                const redirectUri = `${serverUrl}oauth/campux/callback`;
+                // token 交换必须与 authorize 使用完全相同的 redirect_uri
+                const redirectUri = String(s.redirectUri || resolveRedirectUri(this));
                 const verifier = s.codeVerifier as string | undefined;
                 if (!verifier) throw new UserFacingError('PKCE verifier missing');
 
@@ -116,13 +126,14 @@ export default class LoginWithCampuxService extends Service {
                 };
             },
             get: async function get(this: Handler) {
-                const serverUrl = String(SystemModel.get('server.url') || '').replace(/\/+$/, '/');
-                const redirectUri = `${serverUrl}oauth/campux/callback`;
+                const redirectUri = resolveRedirectUri(this);
+                logger.info('Campux OAuth redirect_uri=%s', redirectUri);
                 const verifier = randomVerifier();
                 const challenge = pkceChallenge(verifier);
                 const [state] = await TokenModel.add(TokenModel.TYPE_OAUTH, 600, {
                     redirect: this.request.referer,
                     codeVerifier: verifier,
+                    redirectUri,
                 });
                 this.session.oauthCampuxState = state;
                 const authorize = new URL(`${endpoint}/oauth/authorize`);

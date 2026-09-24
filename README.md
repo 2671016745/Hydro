@@ -232,13 +232,15 @@ CAMPUX_ADMIN_QQ=1692138502
 
 ### 4.4 回调登记
 
-在 Campux 后台登记 **所有** 会用到的回调（与浏览器实际 host 一致）：
+在 Campux 后台登记 **所有** 会用到的回调。插件按 **当前浏览器 Host** 生成 `redirect_uri`（并用于 token 交换），因此每个访问入口都要登记：
 
 ```text
 https://<正式域名>/oauth/campux/callback
 http://127.0.0.1:8888/oauth/campux/callback
-http://<局域网IP>:8888/oauth/campux/callback
+http://<当前局域网IP>:8888/oauth/campux/callback
 ```
+
+> **常见错误**：`redirect_uri 未在应用中注册`。多半是局域网 IP 变了（如 `192.168.18.11` → `192.168.18.3`），或访问用的 host 与 allowlist 不一致。把 **实际访问地址** 的 callback 加进 Campux 应用即可。
 
 | 应用项 | 值 |
 |--------|----|
