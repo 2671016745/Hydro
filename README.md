@@ -1,377 +1,258 @@
 # 奎光 OJ · Campux OAuth 登录（Hydro fork）
 
-这是 [Hydro](https://github.com/hydro-dev/Hydro) 的定制 fork，为 **桂林市奎光学校** 部署：
+桂林市奎光学校 Hydro OJ：站名 **「奎光」**，登录 **只走 Campux OAuth**，UI 用校徽 / 校园画 branding，页脚保留 `Powered by Hydro`。
 
-- 站名：**「奎光」**
-- 登录 **只走 Campux 校园墙 OAuth**（无本地密码登录、无其它 OAuth、无找回密码）
-- UI 使用校徽 / 校园画 branding
-- 页脚按 AGPL 保留 `Powered by Hydro`
+下面各节默认折叠，点标题展开。
 
-适合校园场景：用户使用已有 Campux / QQ 身份进入 OJ，无需在 Hydro 再维护一套账号密码。
-
----
-
-## 1. 环境依赖（要装啥）
+<details>
+<summary><strong>1. 环境依赖（要装啥）</strong></summary>
 
 ### 1.1 必装
 
 | 依赖 | 版本建议 | 用途 | 安装 |
 |------|----------|------|------|
-| **Node.js** | 20+（本机验证 24.x） | 运行 Hydro / Mongo 脚本 | <https://nodejs.org> 或 `winget install OpenJS.NodeJS.LTS` |
-| **Git** | 任意近期版本 | 克隆 / 更新仓库 | <https://git-scm.com> 或 `winget install Git.Git` |
-| **Yarn** | 通过 Corepack 启用 | 安装 workspace 依赖 | 见下方命令（**不要**单独 `npm i -g yarn` 装 Yarn 1） |
-| **Yarn 依赖包** | `yarn.lock` 锁定 | Hydro 本体 + UI + 插件 | 仓库根目录执行一次 `yarn install` |
-| **mongodb-memory-server** | 已在根 `package.json` 的 devDependencies | 本地内存 Mongo | 随 `yarn install` 装好；**首次启动会下载 mongod 二进制** |
-
-启用 Yarn（仓库用 Corepack + Yarn Berry，`nodeLinker: node-modules`）：
+| **Node.js** | 20+（本机验证 24.x） | 运行 Hydro / 脚本 | <https://nodejs.org> 或 `winget install OpenJS.NodeJS.LTS` |
+| **Git** | 任意近期版本 | 克隆 / 更新 | <https://git-scm.com> |
+| **Yarn** | Corepack | 安装 workspace | `corepack enable`（**不要** `npm i -g yarn`） |
+| **Yarn 依赖** | `yarn.lock` | Hydro + UI + 插件 | 仓库根目录 `yarn install` |
+| **mongodb-memory-server** | 根 `package.json` devDependencies | 本地内存 Mongo | 随 `yarn install`；**首次会下载 mongod** |
 
 ```powershell
-# 在仓库根目录
-corepack enable
-corepack prepare yarn@stable --activate   # 或项目指定版本
-yarn -v
-```
-
-首次拉依赖：
-
-```powershell
+# Windows / 通用
 cd D:\github\Hydro
+corepack enable
+corepack prepare yarn@stable --activate
 yarn install
-# postinstall 会跑 node build/prepare.js，属正常现象
 ```
 
-> 首次 `yarn install` 需要网络；失败多半是代理 / 镜像问题，可设 `npm_config_registry` 或公司代理后再试。
+```bash
+# Linux / macOS
+cd /path/to/Hydro
+corepack enable && yarn install
+```
 
-### 1.2 联调用（已提供脚本，无需另装）
+`postinstall` 会跑 `node build/prepare.js`，属正常现象。
 
-| 脚本 | 作用 |
-|------|------|
-| `data/start-memory-mongo.js` | 启动内存 Mongo，写 `~/.hydro/config.json` 与 `addon.json` |
-| `data/start-mongo.cmd` | 上面脚本的 cmd 包装 |
-| `data/start-hydro.cmd` | 设站名/域名头像/LAN URL + OAuth 环境变量 + 启动 worker |
-| `data/start-all.cmd` | **一键**：先起 Mongo，再起 Hydro（推荐） |
-| `data/set-hydro-lan.js` | 自动探测局域网 IP 写入 `server.url` |
-| `data/set-site-name.js` | 站名「奎光」 |
-| `data/set-domain-avatar.js` | 域名头像 = 校徽 |
-| `data/patch-*.py` | 预构建 UI 的手工补丁（见 §5） |
+### 1.2 联调脚本（`data/`，git 忽略）
 
-### 1.3 可选 / 场景依赖
+| 脚本 | 平台 | 作用 |
+|------|------|------|
+| `data/start-memory-mongo.js` | 通用 | 内存 Mongo，写 `~/.hydro/config.json` |
+| `data/start-mongo.cmd` / `start-mongo.sh` | Win / Linux | 上面脚本的包装 |
+| `data/start-hydro.cmd` / `start-hydro.sh` | Win / Linux | 站名/头像/LAN + OAuth + 启动 worker |
+| `data/start-all.cmd` / `start-all.sh` | Win / Linux | **一键** Mongo + Hydro |
+| `data/set-hydro-lan.js` | 通用 | 自动探测局域网 IP |
+| `data/set-site-name.js` | 通用 | 站名「奎光」 |
+| `data/set-domain-avatar.js` | 通用 | 域名头像 = 校徽 |
+| `data/patch-*.py` | 通用 | 预构建 UI 手工补丁 |
+
+Linux 密钥可放 scripts/env.campux（chmod 600，**勿提交**），或直接 export 环境变量。
+
+### 1.3 可选 / 不用装
 
 | 场景 | 需要 |
 |------|------|
-| 改 UI 并 **完整重建** 前端 | 能跑 `yarn build:ui` 的环境（Linux/macOS 或修好 Stylus 的 Windows）+ 较大内存（生产构建脚本给了 8GB） |
-| 只改模板 / 校徽图 | **不需要** 重建 UI；改完重启 Hydro 即可 |
-| 生产部署 | **持久化 MongoDB**（系统包或 Docker），不要用内存 Mongo |
-| 打补丁脚本 `data/patch-*.py` | Python 3（写文件用 UTF-8） |
-| 测 PKCE / 类型检查 | 见 §7 验证命令 |
+| 完整重建 UI | Linux/macOS 推荐；**Windows `build:ui` 会失败** |
+| 只改模板/校徽图 | 无需重建 UI |
+| 生产 | **持久化 MongoDB** |
+| 补丁脚本 | Python 3 |
+| 单独 MongoDB / PM2 / Nginx | 联调不需要 |
 
-### 1.4 不需要单独安装的
+</details>
 
-- MongoDB 服务端（联调用 `mongodb-memory-server` 即可）
-- PM2 / Nginx（本地联调不需要；生产再配）
-- Campux 服务端本体（走线上 `https://kg.campux.top`）
+<details>
+<summary><strong>2. 快捷启动</strong></summary>
 
----
-
-## 2. 快捷启动
-
-### 2.1 一键（推荐）
+### 2.1 Windows 一键
 
 ```powershell
 cd D:\github\Hydro
 data\start-all.cmd
 ```
 
-脚本会：
+### 2.2 Linux / macOS 一键
 
-1. 新开窗口启动内存 Mongo  
-2. 等待 `~/.hydro/config.json` 写好  
-3. 写入站名 / 域名头像 / LAN URL  
-4. 导出 Campux OAuth 环境变量并启动 Hydro  
-
-浏览器打开日志里打印的地址，或：
-
-```text
-http://127.0.0.1:8888/
-http://<局域网IP>:8888/
+```bash
+cd /path/to/Hydro
+chmod +x data/*.sh          # 首次
+# 密钥：export 或写入 scripts/env.campux（见下）
+scripts/start-all.sh
 ```
 
-### 2.2 两个窗口（排错时更直观）
+`start-all.sh` 会：后台起内存 Mongo → 等 `~/.hydro/config.json` → 写站名/头像/LAN → 读 OAuth 环境变量 → 前台跑 Hydro（Ctrl+C 一并停 Mongo）。
 
-```powershell
-# 窗口 A：内存 Mongo
-cd D:\github\Hydro
-data\start-mongo.cmd
+Linux 密钥示例 scripts/env.campux（**不要提交**）：
 
-# 窗口 B：等 A 打出 MONGO_URI 后
-cd D:\github\Hydro
-data\start-hydro.cmd
+```bash
+export CAMPUX_OAUTH_ENDPOINT=https://kg.campux.top
+export CAMPUX_OAUTH_CLIENT_ID=你的ID
+export CAMPUX_OAUTH_CLIENT_SECRET=你的SECRET
+export CAMPUX_OAUTH_SCOPE=profile
+export CAMPUX_ADMIN_QQ=1692138502
+chmod 600 scripts/env.campux
 ```
 
-### 2.3 手工最小步骤（理解原理）
+### 2.3 双窗口（排错）
 
-```powershell
-cd D:\github\Hydro
+```bash
+# 窗口 A
+scripts/start-mongo.sh    # 或 start-mongo.cmd
 
-# 1) 起 Mongo（会写 ~/.hydro/config.json）
-node data\start-memory-mongo.js
-
-# 2) 另开终端，写站点配置
-node data\set-hydro-lan.js
-node data\set-site-name.js          # 默认「奎光」
-node data\set-domain-avatar.js
-
-# 3) 导出 OAuth 环境变量（密钥在 data/start-hydro.cmd，勿外传）
-$env:CAMPUX_OAUTH_ENDPOINT = 'https://kg.campux.top'
-$env:CAMPUX_OAUTH_CLIENT_ID = '<ID>'
-$env:CAMPUX_OAUTH_CLIENT_SECRET = '<SECRET>'
-$env:CAMPUX_OAUTH_SCOPE = 'profile'
-$env:CAMPUX_ADMIN_QQ = '1692138502'
-
-# 4) 启动
-node -r @hydrooj/register packages/hydrooj/bin/hydrooj.js --host 0.0.0.0 --port 8888 --public
+# 窗口 B
+scripts/start-hydro.sh    # 或 start-hydro.cmd
 ```
 
-### 2.4 启动后自检（约 10 秒）
+### 2.4 启动后自检
 
-```powershell
-# 端口在听？
-Get-NetTCPConnection -LocalPort 8888
-
-# 首页 200 且标题含「奎光」？
-curl.exe -s -o NUL -w "%%{http_code}" http://127.0.0.1:8888/
-
-# 登录页品牌资源可访问？
-curl.exe -s -o NUL -w "campus=%%{http_code}\n" http://127.0.0.1:8888/misc/guiguang-campus.jpg
-curl.exe -s -o NUL -w "badge=%%{http_code}\n"  http://127.0.0.1:8888/img/guiguang-school-badge.png
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8888/
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8888/misc/guiguang-campus.jpg
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8888/img/guiguang-school-badge.png
 ```
 
-日志：`data/hydro.log`、`data/hydro.err.log`、`data/mongo.log`。
+> **改模板 / TS 后必须重启 Hydro**，前端 JS 不热更。
 
-> **改模板 / TS 后必须重启 Hydro。** 已构建的 UI JS 不会热更。
+</details>
 
----
+<details>
+<summary><strong>3. 功能总览</strong></summary>
 
-## 3. 功能总览
+### 登录 / OAuth
 
-### 3.1 登录与 OAuth
+- Campux OAuth2 + PKCE S256；只保留 Campux
+- 自动注册；`redirect_uri` 按**浏览器 Host** 生成并用于 token 交换
+- 首次自动注册后强制设密 **只一次**；首设免「当前密码」
 
-- Campux OAuth2 + **PKCE S256**
-- 只保留 Campux；关闭内置密码登录 / 其它 OAuth / 找回密码
-- 未绑定用户首次登录 **自动注册**
-- WebAuthn 自动填充误报提示在 OAuth-only 下抑制
-
-### 3.2 账号映射与权限
+### 账号映射
 
 | Campux / QQ | Hydro |
 |-------------|--------|
-| `username`（QQ 昵称） | 用户名（冲突时回退 QQ 号 / `campux_<sub>`） |
+| `username`（QQ 昵称） | 用户名 |
 | `name`（QQ 号） | **UID** |
-| QQ 头像 | 头像 `qq:<qq>` |
+| QQ 头像 | `qq:<qq>` |
 | 合成邮箱 | `<qq>@campux.hydro.local` |
-| `CAMPUX_ADMIN_QQ` | 自动 `PRIV_ALL` |
+| `CAMPUX_ADMIN_QQ` | `PRIV_ALL` |
 
-- **首次 OAuth 自动注册后强制设密码，且只强制一次**（`noLocalPassword` 仅 autoRegister 写入；已有用户登录不再重置）
-- 首次设密 **不需要** 当前密码
-- 用户自己设的密码保留，不要改回密码登录
+### UI
 
-### 3.3 站点 UI / 品牌
+- 登录页：校园画 + 白底校徽 + Campux 按钮
+- 空头像回落 `/img/avatar.png`（不用 Gravatar）
+- SW `ui-resources-cache-v2`，不预缓存 favicon/logo
 
-- 站名 **「奎光」**
-- 登录页：校园画满幅 + 白底方形校徽 + Campux 官方 SVG 按钮
-- 导航：左校徽（`?v=school`）+ 右上 QQ 头像/昵称
-- 空头像回落 `/img/avatar.png`（**不用 Gravatar**）
-- SW 缓存 `ui-resources-cache-v2`，不预缓存 favicon / logo / nav-logo
+</details>
 
-| 素材 | 路径 |
-|------|------|
-| 白底方形校徽 | `packages/ui-default/static/img/guiguang-school-badge.png` |
-| 透明校徽 logo | `packages/ui-default/static/img/guiguang-school-logo.png` |
-| Campux logo | `packages/ui-default/static/img/campux-logo.svg` |
-| 默认头像 | `packages/ui-default/static/img/avatar.png` |
-| 校园画 | `packages/ui-default/static/misc/guiguang-campus.jpg` |
-| 导航 logo | `packages/ui-default/public/components/navigation/nav-logo-small_dark.png` |
+<details>
+<summary><strong>4. OAuth / Campux 配置（含 redirect_uri）</strong></summary>
 
----
-
-## 4. OAuth / Campux 配置
-
-### 4.1 环境变量
-
-**密钥只放 `data/`（git 忽略）或部署环境变量，禁止进 git、禁止外传。**
+### 环境变量
 
 ```env
-# 端点是 kg.campux.top，不是 app.campux.top
 CAMPUX_OAUTH_ENDPOINT=https://kg.campux.top
-CAMPUX_OAUTH_CLIENT_ID=<Client ID>
-CAMPUX_OAUTH_CLIENT_SECRET=<Client Secret>
+CAMPUX_OAUTH_CLIENT_ID=<id>
+CAMPUX_OAUTH_CLIENT_SECRET=<secret>
 CAMPUX_OAUTH_SCOPE=profile
 CAMPUX_ADMIN_QQ=1692138502
 ```
 
-| 变量 | 说明 | 默认 / 要求 |
-|------|------|-------------|
-| `CAMPUX_OAUTH_ENDPOINT` | Campux 站点 | `https://kg.campux.top` |
-| `CAMPUX_OAUTH_CLIENT_ID` | Client ID | **必填**，缺则 worker 退出 |
-| `CAMPUX_OAUTH_CLIENT_SECRET` | Client Secret | **必填**，缺则 worker 退出 |
-| `CAMPUX_OAUTH_SCOPE` | Scope | `profile` |
-| `CAMPUX_ADMIN_QQ` | 超管 QQ | `1692138502` |
+Scope **只用 `profile`**（`tenant` 需 allowlist 授权，本部署不用）。
 
-### 4.2 Scope 坑
+### redirect_uri 必须登记
 
-**只使用 `profile`。** 申请 `tenant` 会报「不支持的 scope: tenant」，除非 Campux 应用 allowlist 勾了它。
+插件按当前 Host 生成 callback，**每个访问入口都要在 Campux 应用 allowlist 登记**：
 
-### 4.3 UserInfo
+```text
+http://127.0.0.1:8888/oauth/campux/callback
+http://<当前局域网IP>:8888/oauth/campux/callback
+https://<正式域名>/oauth/campux/callback
+```
+
+> 报 **「redirect_uri 未在应用中注册」** 时：多半是 IP/域名变了，把**实际访问地址**的 callback 加进 Campux。
+
+`server.url` 仍建议以 `/` 结尾（Host 缺失时的回退）。
+
+### UserInfo
 
 | 字段 | 必需 | 含义 |
 |------|------|------|
 | `sub` | 是 | 稳定用户 ID |
-| `name` | 是 | **QQ 号**（5–20 位纯数字）→ UID |
-| `username` | 否 | **QQ 昵称** |
-| `tenant_*` | 否 | 本部署不用 |
+| `name` | 是 | QQ 号 → UID |
+| `username` | 否 | QQ 昵称 |
 
-### 4.4 回调登记
+</details>
 
-在 Campux 后台登记 **所有** 会用到的回调。插件按 **当前浏览器 Host** 生成 `redirect_uri`（并用于 token 交换），因此每个访问入口都要登记：
+<details>
+<summary><strong>5. 潜在问题（Windows / Linux）</strong></summary>
 
-```text
-https://<正式域名>/oauth/campux/callback
-http://127.0.0.1:8888/oauth/campux/callback
-http://<当前局域网IP>:8888/oauth/campux/callback
-```
+| 问题 | Windows | Linux |
+|------|---------|-------|
+| `build:ui` Stylus/rupture 失败 | **有**，用预构建 + `data/patch-*.py` | 一般没有 |
+| 中文写进启动脚本变 `濂庡厜` | **有**（`.cmd`/PowerShell 编码） | 少见；保持 UTF-8 |
+| `curl` 是 PowerShell 别名 | **有**，用 `curl.exe` | 无 |
+| 内存 Mongo 重启丢站名/头像 | **有** | **有**（`start-*.sh` 已自动重放） |
+| `redirect_uri` 未登记 | **有** | **有**（与平台无关） |
+| 进程守护 | 弱（独立窗口） | `systemd` / `pm2` |
 
-> **常见错误**：`redirect_uri 未在应用中注册`。多半是局域网 IP 变了（如 `192.168.18.11` → `192.168.18.3`），或访问用的 host 与 allowlist 不一致。把 **实际访问地址** 的 callback 加进 Campux 应用即可。
+### 其它高发
 
-| 应用项 | 值 |
-|--------|----|
-| Authorization URL | `{endpoint}/oauth/authorize` |
-| Token URL | `{endpoint}/oauth/token` |
-| UserInfo URL | `{endpoint}/oauth/userinfo` |
-| PKCE | `S256`（插件自动处理） |
-| Scope | `profile` |
+- 登录背景/图标「没了」→ 多半 SW/浏览器缓存，清站点数据
+- 重建 UI 后 WebAuthn 报错/无头像 → 重跑三个 `data/patch-*.py`
+- 反复强制设密 → 不应发生；查 `noLocalPassword` 是否被手改
 
-`server.url` 必须 **以 `/` 结尾**，例如 `http://192.168.18.11:8888/`。
+</details>
 
----
-
-## 5. 潜在问题（提前避坑）
-
-### 5.1 安装 / 依赖
-
-| 现象 | 原因 | 处理 |
-|------|------|------|
-| `yarn` 命令找不到或版本不对 | 未启用 Corepack / 装了全局 Yarn 1 | `corepack enable` 后用仓库 Yarn；删掉全局 yarn 1 |
-| `yarn install` 很慢或失败 | 网络 / 镜像 / 代理 | 配代理或 registry；企业网注意 SSL 检查 |
-| 首次起 Mongo 卡很久 | `mongodb-memory-server` **首次下载 mongod** | 等待完成；或预置二进制 / 换持久化 Mongo |
-| `Cannot find module 'mongodb'` | 脚本在错误目录执行 | 必须在 `D:\github\Hydro` 下 `node data\...`（用仓库依赖） |
-| 启动报缺 `CAMPUX_OAUTH_CLIENT_ID/SECRET` | 环境变量未导出 | 使用 `data/start-hydro.cmd`，或手动 set 后再启 |
-
-### 5.2 端口 / 进程
-
-| 现象 | 处理 |
-|------|------|
-| 8888 被占用 | `Get-NetTCPConnection -LocalPort 8888` 找到 PID 后结束，或改端口 |
-| Mongo 端口每次都变 | 内存 Mongo **随机端口**，URI 在 `~/.hydro/config.json`；正常现象 |
-| 关窗口后服务没了 | cmd 是前台/子进程；用 `start-all.cmd` 的独立窗口，或改用持久化 Mongo + 进程守护 |
-| 改了模板不生效 | **必须重启 Hydro**；前端 chunk 不热更 |
-
-### 5.3 品牌 / UI（高发）
-
-| 现象 | 原因 | 处理 |
-|------|------|------|
-| 重启后域名头像 / 站名回默认 | **内存 Mongo 清空**，库内配置丢失 | `start-hydro.cmd` / `start-all.cmd` 已自动重跑 `set-site-name.js`、`set-domain-avatar.js` |
-| 登录背景 / 校徽丢 | 多半是 **SW / 浏览器缓存**，不是文件没了 | 清站点数据，或强刷；确认 `/misc/guiguang-campus.jpg` 200 |
-| 图标仍是旧 Hydro | SW 预缓存旧 favicon | 清站点数据；SW v2 已排除 favicon/logo |
-| 中文站名变 `濂庡厜` | **`.cmd` 编码** 把 UTF-8 当 ANSI | 勿把中文写进 `.cmd`；站名默认值只放在 `set-site-name.js` |
-| `build:ui` 在 Windows 失败 | Stylus / rupture | **不要**在 Windows 重建；用 npm `@hydrooj/ui-default@4.58.5` 预构建进 `packages/ui-default/public/` |
-| 重建 UI 后 WebAuthn 报错 / 无导航头像 / SW 异常 | 产物丢了手工补丁 | 重跑 `data/patch-webauthn-guard.py`、`patch-nav-avatar.py`、`patch-sw.py` |
-
-### 5.4 登录 / 账号
-
-| 现象 | 处理 |
-|------|------|
-| 回调后 token / state 错误 | 回调 host 必须与访问地址一致；`server.url` 带尾 `/`；同一浏览器会话完成跳转 |
-| 仍出现密码登录 | 查环境变量与日志 `Campux OAuth enabled`；换无缓存窗口开 `/login` |
-| 反复强制设密码 | 不应发生。`noLocalPassword` 只在 autoRegister 写入；若复现检查是否手动改过该字段 |
-| 超管权限不对 | 确认 `CAMPUX_ADMIN_QQ=1692138502` 且该 QQ 能登录；插件启动时会补 `PRIV_ALL` |
-| Scope 报错「不支持的 tenant」 | 改回 `SCOPE=profile`，或在 Campux 应用 allowlist 勾选 |
-
-### 5.5 数据与安全
-
-| 风险 | 说明 |
-|------|------|
-| 内存 Mongo **无持久化** | 用户/题目/设置重启即没；只适合联调 |
-| 密钥进 git | **禁止**。`data/` 保持 untracked；生产用环境变量 |
-| 改用户登录方式 | **禁止**。密码是用户自己设的 |
-| AGPL 页脚 | 保留 `Powered by Hydro` |
-
----
-
-## 6. 关键代码位置
+<details>
+<summary><strong>6. 关键代码位置</strong></summary>
 
 | 区域 | 路径 |
 |------|------|
-| OAuth 插件（PKCE、自动注册、QQ 映射） | `packages/login-with-campux/` |
-| 登录 / 自动注册 / 强制设密 | `packages/hydrooj/src/handler/user.ts` |
-| 首次设密免当前密码 | `packages/hydrooj/src/handler/home.ts` |
+| OAuth 插件 | `packages/login-with-campux/` |
+| 登录/自动注册/强制设密 | `packages/hydrooj/src/handler/user.ts` |
+| 首设免当前密码 | `packages/hydrooj/src/handler/home.ts` |
 | 头像回落 | `packages/hydrooj/src/lib/avatar.ts` |
-| 登录页模板 | `packages/ui-default/templates/user_login.html` |
-| 导航模板 | `packages/ui-default/templates/partials/nav.html` |
-| 设密页 | `packages/ui-default/templates/user_setpass.html` |
-| favicon cache-bust | `packages/ui-default/templates/layout/html5.html` |
+| 登录/导航/设密模板 | `packages/ui-default/templates/...` |
 | Service Worker | `packages/ui-default/service-worker.ts` |
-| 多语言 | `packages/ui-default/locales/{en,zh,zh_TW,ko}.yaml` |
-| 插件加载 / 环境变量校验 | `packages/hydrooj/src/entry/worker.ts` |
 
----
+</details>
 
-## 7. 验证命令
+<details>
+<summary><strong>7. 验证命令</strong></summary>
 
-```powershell
-cd D:\github\Hydro
-
-# PKCE 单元测试
+```bash
 node -r @hydrooj/register --test packages/login-with-campux/pkce.test.ts
-
-# TypeScript
 corepack yarn tsc -b packages/hydrooj/tsconfig.json packages/login-with-campux/tsconfig.json --pretty false --force
 ```
 
----
+</details>
 
-## 8. 生产部署检查清单
+<details>
+<summary><strong>8. 生产部署检查清单</strong></summary>
 
 - [ ] Node 20+，`yarn install` 成功
-- [ ] **持久化 MongoDB**（不要内存 Mongo）
-- [ ] `server.url` = 正式域名，且以 `/` 结尾
-- [ ] Campux allowlist 只保留需要的正式回调
+- [ ] **持久化 MongoDB**
+- [ ] `server.url` = 正式域名，尾 `/`
+- [ ] Campux allowlist 只保留需要的回调（含正式域名）
 - [ ] `CAMPUX_OAUTH_SCOPE=profile`
-- [ ] 密钥用环境变量 / `.hydro/env`，不进 git
-- [ ] 超管 `1692138502` 登录验证权限
-- [ ] 页脚 `Powered by Hydro` 仍在
-- [ ] 若重建 UI：重打 `data/patch-*.py` 三个补丁
-- [ ] 用户支持话术：图标旧 → 清 SW / 站点数据
+- [ ] 密钥走环境变量 / `.hydro/env` / scripts/env.campux，**不进 git**
+- [ ] 超管 `1692138502` 验证
+- [ ] 页脚 `Powered by Hydro`
+- [ ] 若重建 UI：重打 `data/patch-*.py`
+- [ ] Linux：UTF-8 locale；`systemd`/`pm2` 守护
 
----
+</details>
 
-## 9. 行为说明（补充）
+<details>
+<summary><strong>9. 详细文档</strong></summary>
 
-- 登录页只显示 Campux 入口
-- `/lostpass` 在密码登录关闭时返回 `Builtin login is disabled.`
-- 语言优先级：`手动选择 → Accept-Language → 英文 → 站点默认`
-- 本机 LAN IP 由 `set-hydro-lan.js` 自动探测，换网段后重启即可
+- [`packages/login-with-campux/README.md`](packages/login-with-campux/README.md)
+- [`.env.campux.example`](.env.campux.example)
+- 上游：[hydro.js.org](https://hydro.js.org/)
 
----
-
-## 10. 详细文档
-
-- [`packages/login-with-campux/README.md`](packages/login-with-campux/README.md)：插件细节与排错
-- [`.env.campux.example`](.env.campux.example)：环境变量模板
-- 上游文档：[hydro.js.org](https://hydro.js.org/)
+</details>
 
 ---
 
 以下为上游 Hydro 原始自述文档内容。
+
 
 
 # Hydro
