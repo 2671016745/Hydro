@@ -52,8 +52,11 @@ class SystemModelService extends Service {
             { $set: { value } },
             { upsert: true, returnDocument: 'after' },
         );
-        this.cache[_id] = res.value;
-        return res.value;
+        // drivers may return the doc or { value: doc }
+        const doc = (res && (res as any)._id !== undefined) ? res : ((res as any)?.value ?? { value });
+        const stored = (doc as any)?.value ?? value;
+        this.cache[_id] = stored;
+        return stored;
     }
 
     async del(_id: string, broadcast = true): Promise<boolean> {
@@ -65,7 +68,7 @@ class SystemModelService extends Service {
 
     async [Service.init]() {
         for (const setting of SYSTEM_SETTINGS) {
-            if (setting.value) this.cache[setting.key] = setting.value;
+            if (setting.value !== undefined && setting.value !== null) this.cache[setting.key] = setting.value;
         }
         const config = await this.coll.find().toArray();
         for (const i of config) this.cache[i._id] = i.value;

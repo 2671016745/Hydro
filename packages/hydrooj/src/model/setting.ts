@@ -105,7 +105,7 @@ function schemaToSettings(schema: Schema<any>) {
         return {
             family: s.meta?.family || defaultFamily,
             key,
-            value: s.meta?.default,
+            value: s.meta?.default ?? (s as any).default,
             name: key,
             desc: s.meta?.description,
             flag,
