@@ -1,81 +1,119 @@
 # Kuiguang OJ · Campux OAuth Login (Hydro fork)
 
-Guilin Kuiguang School Hydro OJ: site name **「奎光」 (Kuiguang)**, login **only via Campux OAuth**, school badge / campus-painting branding, footer keeps `Powered by Hydro`.
+Guilin Kuiguang School Hydro OJ: site name **「奎光」 (Kuiguang)**, login **only via Campux OAuth**, school badge / campus painting branding, footer keeps `Powered by Hydro`.
 
-Sections below are **collapsed by default** — click a heading to expand.
+**Collapsed by OS: Linux on top, Windows below.** Click a title to expand that OS's full runbook (deps / start / notes). Shared config is in the last folded section.
 
 <details>
-<summary><strong>1. Prerequisites (what to install)</strong></summary>
+<summary><strong>Linux</strong></summary>
 
-| Dependency | Version | Notes |
-|------------|---------|-------|
-| **Node.js** | 20+ (verified 24.x) | <https://nodejs.org> |
-| **Git** | recent | clone / update |
-| **Yarn** | Corepack | `corepack enable` (do **not** `npm i -g yarn`) |
-| **Workspace deps** | `yarn.lock` | `yarn install` in repo root |
-| **mongodb-memory-server** | root devDependency | first start downloads mongod |
+### Dependencies
+
+| Need | Version | Install |
+|------|---------|---------|
+| Node.js | 20+ (prefer 22/24) | nodejs.org or distro packages |
+| Git | recent | `apt install git` etc. |
+| Yarn | Corepack | `corepack enable` then `yarn install` |
+| Python 3 | optional | `data/patch-*.py` only |
 
 ```bash
 cd /path/to/Hydro
-corepack enable && yarn install
+corepack enable
+yarn install
+chmod +x scripts/*.sh
 ```
 
-Helper scripts live in `data/` (git-ignored): `start-mongo.sh` / `start-hydro.sh` / `start-all.sh` and Windows `.cmd` twins.
+### Start (Mongo / demo)
 
-Secrets for Linux: export env vars or put them in scripts/env.campux (chmod 600, **never commit**).
+```bash
+scripts/start-all.sh
+```
+
+Secrets in `scripts/env.campux` (`chmod 600`, never commit):
+
+```bash
+CAMPUX_OAUTH_ENDPOINT=https://kg.campux.top
+CAMPUX_OAUTH_CLIENT_ID=...
+CAMPUX_OAUTH_CLIENT_SECRET=...
+CAMPUX_OAUTH_SCOPE=profile
+CAMPUX_ADMIN_QQ=1692138502
+```
+
+Two terminals:
+
+```bash
+scripts/start-mongo.sh
+scripts/start-hydro.sh
+```
+
+```bash
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8888/
+```
+
+### Linux notes
+
+- Restart Hydro after template/TS edits
+- UTF-8 locale; use systemd/pm2 in production
+- In-memory Mongo wipes DB config; `scripts/start-*.sh` re-applies site name / domain avatar
+- `redirect_uri` follows browser Host — register every host in Campux allowlist
+- Open port 8888 on the LAN firewall
 
 </details>
 
 <details>
-<summary><strong>2. Quick start</strong></summary>
+<summary><strong>Windows</strong></summary>
 
-### Linux / macOS (one click)
+### Dependencies
 
-```bash
-cd /path/to/Hydro
-chmod +x data/*.sh
-scripts/start-all.sh
+| Need | Version | Install |
+|------|---------|---------|
+| Node.js | 20+ (prefer 22/24) | nodejs.org / `winget install OpenJS.NodeJS.LTS` |
+| Git | recent | `winget install Git.Git` |
+| Yarn | Corepack | `corepack enable` (do **not** `npm i -g yarn`) |
+| Python 3 | optional | `data/patch-*.py` |
+
+```powershell
+cd D:\github\Hydro
+corepack enable
+yarn install
 ```
 
-Backgrounds in-memory Mongo, waits for `~/.hydro/config.json`, applies branding, starts Hydro. Ctrl+C stops both.
+Do **not** run `yarn build:ui` on Windows (Stylus/rupture). Use prebuilt `@hydrooj/ui-default@4.58.5` in `packages/ui-default/public/` and re-apply `data/patch-*.py` after source edits.
 
-### Windows (one click)
+### Start (Mongo / demo)
 
 ```powershell
 cd D:\github\Hydro
 data\start-all.cmd
 ```
 
-### Two terminals
+OAuth secrets stay in `data/start-hydro.cmd` (git-ignored) — never commit.
 
-```bash
-scripts/start-mongo.sh   # or .cmd
-scripts/start-hydro.sh   # or .cmd
+Two terminals:
+
+```powershell
+data\start-mongo.cmd
+data\start-hydro.cmd
 ```
 
-### Smoke check
-
-```bash
-curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:8888/
+```powershell
+curl.exe -s -o NUL -w "%{http_code}" http://127.0.0.1:8888/
 ```
 
-**Restart Hydro after template/TS edits.**
+### Windows notes
+
+- Use `curl.exe`, not the PowerShell `curl` alias
+- Keep Chinese out of `.cmd` (encoding breaks); put defaults in UTF-8 `.js`
+- Restart Hydro after template/TS edits
+- After UI rebuild: `patch-sw.py`, `patch-webauthn-guard.py`, `patch-nav-avatar.py`
+- Old icons → clear Service Worker / site data
 
 </details>
 
 <details>
-<summary><strong>3. Features</strong></summary>
+<summary><strong>Shared config (OAuth / accounts / UI)</strong></summary>
 
-- Campux OAuth2 + PKCE S256 only
-- Auto-register; `redirect_uri` from **browser Host**, reused in token exchange
-- Forced set-password **once** after first auto-register
-- QQ nickname → username, QQ number → UID, QQ avatar
-- Campus painting login + school badge; avatar fallback `/img/avatar.png` (no Gravatar)
-
-</details>
-
-<details>
-<summary><strong>4. Campux OAuth / redirect_uri</strong></summary>
+### Environment
 
 ```env
 CAMPUX_OAUTH_ENDPOINT=https://kg.campux.top
@@ -85,9 +123,11 @@ CAMPUX_OAUTH_SCOPE=profile
 CAMPUX_ADMIN_QQ=1692138502
 ```
 
-Scope: **`profile` only**.
+Endpoint is **`kg.campux.top`**. Scope **`profile` only**. Never commit secrets.
 
-Register **every host you browse** in the Campux app allowlist:
+### redirect_uri
+
+Built from the **browser Host** and reused for token exchange. Register every host you open:
 
 ```text
 http://127.0.0.1:8888/oauth/campux/callback
@@ -95,38 +135,28 @@ http://<current-LAN-IP>:8888/oauth/campux/callback
 https://<production-domain>/oauth/campux/callback
 ```
 
-Error `redirect_uri 未在应用中注册` means the allowlist is missing that exact callback (often after an IP change).
+`redirect_uri 未在应用中注册` means the allowlist is missing that host.
+
+### Accounts
+
+QQ nickname → username, QQ number → UID, QQ avatar, `CAMPUX_ADMIN_QQ` → `PRIV_ALL`. Forced set-password **once** after first auto-register.
 
 </details>
 
 <details>
-<summary><strong>5. Pitfalls (Windows vs Linux)</strong></summary>
-
-| Issue | Windows | Linux |
-|-------|---------|-------|
-| `yarn build:ui` (Stylus) | **Fails** — prebuild + `data/patch-*.py` | Usually OK |
-| Chinese in `.cmd` / encoding | **Corrupts** (`濂庡厜`) | Keep UTF-8 |
-| `curl` alias | Use `curl.exe` | Fine |
-| In-memory Mongo branding reset | Yes | Yes |
-| `redirect_uri` not registered | Yes | Yes |
-| Process supervisor | weak | `systemd` / `pm2` |
-
-</details>
-
-<details>
-<summary><strong>6. Code map / verify / production</strong></summary>
+<summary><strong>Code map / verify / production</strong></summary>
 
 | Area | Path |
 |------|------|
 | OAuth plugin | `packages/login-with-campux/` |
-| Login / auto-register / setpass | `packages/hydrooj/src/handler/user.ts` |
+| Login / setpass | `packages/hydrooj/src/handler/user.ts` |
 | Avatar fallback | `packages/hydrooj/src/lib/avatar.ts` |
 
 ```bash
 node -r @hydrooj/register --test packages/login-with-campux/pkce.test.ts
 ```
 
-Production: persistent Mongo, real `server.url`, Campux allowlist for prod host, secrets out of git, re-apply UI patches if rebuilt, keep `Powered by Hydro`.
+Production: persistent Mongo, real `server.url`, Campux allowlist, secrets out of git, keep `Powered by Hydro`.
 
 </details>
 
