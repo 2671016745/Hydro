@@ -35,10 +35,16 @@ fs.writeFileSync(addonPath, JSON.stringify(addons, null, 2));
 console.log('sqlite url', cfg.url);
 NODE
 
+# 启动前先修好品牌配置；失败则不启动（修好才能访问）
 node data/set-hydro-lan.js || true
-node data/set-site-name.js || true
-node data/set-domain-avatar.js || true
-node data/apply-brand-settings.js || true
+node data/set-site-name.js
+node data/set-domain-avatar.js
+if [[ -f data/apply-brand-settings.js ]]; then
+  node data/apply-brand-settings.js
+else
+  echo "error: data/apply-brand-settings.js missing" >&2
+  exit 1
+fi
 
 if [[ -f scripts/env.campux ]]; then
   set -a

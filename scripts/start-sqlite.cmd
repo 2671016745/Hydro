@@ -18,5 +18,15 @@ set CAMPUX_OAUTH_SCOPE=profile
 set CAMPUX_ADMIN_QQ=1692138502
 rem Set client id/secret via environment or edit data\start-hydro.cmd local copy — never commit secrets.
 
+rem 启动前先修好品牌配置；失败则不启动
+if exist data\set-site-name.js node data\set-site-name.js
+if exist data\set-domain-avatar.js node data\set-domain-avatar.js
+if exist data\apply-brand-settings.js (
+  node data\apply-brand-settings.js
+  if errorlevel 1 (
+    echo Branding fix failed. Fix data/apply-brand-settings.js then retry.
+    exit /b 1
+  )
+)
 node -r @hydrooj/register packages/hydrooj/bin/hydrooj.js --host 0.0.0.0 --port 8888 --public
 endlocal
