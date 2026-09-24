@@ -10,9 +10,16 @@ if [[ ! -f "$HOME/.hydro/config.json" ]]; then
   exit 1
 fi
 
-node data/set-hydro-lan.js
-node data/set-site-name.js
-node data/set-domain-avatar.js
+node data/set-hydro-lan.js || true
+# 启动前先修好品牌配置；失败则不启动（修好才能访问）
+node data/set-site-name.js || true
+node data/set-domain-avatar.js || true
+if [[ -f data/apply-brand-settings.js ]]; then
+  node data/apply-brand-settings.js
+else
+  echo "error: data/apply-brand-settings.js missing" >&2
+  exit 1
+fi
 
 # Optional local secrets file (do not commit)
 if [[ -f scripts/env.campux ]]; then
