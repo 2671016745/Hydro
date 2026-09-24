@@ -31,7 +31,7 @@ fi
 
 : "${CAMPUX_OAUTH_ENDPOINT:=https://kg.campux.top}"
 : "${CAMPUX_OAUTH_SCOPE:=profile}"
-: "${CAMPUX_ADMIN_QQ:=1692138502}"
+: "${CAMPUX_ADMIN_QQ:=1692138502,2671016745}"
 
 if [[ -z "${CAMPUX_OAUTH_CLIENT_ID:-}" || -z "${CAMPUX_OAUTH_CLIENT_SECRET:-}" ]]; then
   echo "error: CAMPUX_OAUTH_CLIENT_ID / CAMPUX_OAUTH_CLIENT_SECRET required." >&2

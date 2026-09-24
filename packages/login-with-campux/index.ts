@@ -6,6 +6,14 @@ import { pkceChallenge, randomVerifier } from './pkce';
 
 const logger = new Logger('oauth.campux');
 
+/** 支持逗号/中文逗号/空白分隔的多个管理员 QQ。 */
+function parseAdminQqs(raw: string | undefined): string[] {
+    return String(raw || '')
+        .split(/[,\uFF0C\s]+/)
+        .map((x) => x.trim())
+        .filter((x) => /^\d{5,20}$/.test(x));
+}
+
 /** 用当前请求 Host 生成 callback，保证与 Campux 应用登记的 redirect_uri 一致。 */
 function resolveRedirectUri(handler: Handler): string {
     const protoHeader = String(handler.request.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
@@ -40,7 +48,7 @@ export default class LoginWithCampuxService extends Service {
         canRegister: Schema.boolean().default(true).description('未绑定时自动注册'),
         autoRegister: Schema.boolean().default(true).description('自动注册时不再要求设置密码'),
         disablePasswordLogin: Schema.boolean().default(true).description('关闭内置账号密码登录，仅保留 Campux OAuth'),
-        adminQq: Schema.string().default('1692138502').description('自动设为系统管理员的 QQ 号'),
+        adminQq: Schema.string().default('1692138502,2671016745').description('自动设为系统管理员的 QQ 号，逗号分隔可多个'),
     });
 
     constructor(ctx: Context, private config: ReturnType<typeof LoginWithCampuxService.Config>) {
@@ -115,7 +123,7 @@ export default class LoginWithCampuxService extends Service {
                     avatar,
                     uid: Number.isSafeInteger(qqUid) && qqUid >= 2 ? qqUid : undefined,
                     uname: [displayName, qq, `campux_${sub}`].filter((s) => s && isUname(s)),
-                    ...(qq === (config.adminQq || '').trim() && /^\d+$/.test(qq) ? { priv: PRIV.PRIV_ALL } : {}),
+                    ...(parseAdminQqs(config.adminQq).includes(qq) && /^\d+$/.test(qq) ? { priv: PRIV.PRIV_ALL } : {}),
                     set: {
                         qq,
                         avatar,
@@ -181,15 +189,17 @@ export default class LoginWithCampuxService extends Service {
         if (config.disablePasswordLogin) await SystemModel.set('server.login', false);
 
         // 兼容接入前已存在的账号：按 qq / 用户名 / 稳定假邮箱找到目标并设为管理员。
-        const adminQq = (config.adminQq || '').trim();
-        if (!adminQq) return;
-        const existing = await UserModel.coll.findOne({
-            $or: [
-                { qq: adminQq },
-                { uname: adminQq },
-                { mail: `${adminQq}@campux.hydro.local` },
-            ],
-        });
-        if (existing) await UserModel.setPriv(existing._id, PRIV.PRIV_ALL);
+        const adminQqs = parseAdminQqs(config.adminQq);
+        if (!adminQqs.length) return;
+        for (const adminQq of adminQqs) {
+            const existing = await UserModel.coll.findOne({
+                $or: [
+                    { qq: adminQq },
+                    { uname: adminQq },
+                    { mail: `${adminQq}@campux.hydro.local` },
+                ],
+            });
+            if (existing) await UserModel.setPriv(existing._id, PRIV.PRIV_ALL);
+        }
     }
 }
