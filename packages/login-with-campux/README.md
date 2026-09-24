@@ -12,7 +12,7 @@ Hydro fork 内置的 Campux OAuth 登录插件。启用后：
 
 ```env
 # Campux 站点地址
-CAMPUX_OAUTH_ENDPOINT=https://app.campux.top
+CAMPUX_OAUTH_ENDPOINT=https://kg.campux.top
 
 # 必填：Campux 管理后台创建的 OAuth 应用凭据
 CAMPUX_OAUTH_CLIENT_ID=
@@ -44,7 +44,7 @@ https://oj.example.com/
 本地调试时可使用局域网地址，例如：
 
 ```text
-http://192.168.18.11:8888/oauth/campux/callback
+http://<局域网IP>:8888/oauth/campux/callback
 ```
 
 ## Campux OAuth 应用配置
@@ -76,7 +76,8 @@ http://192.168.18.11:8888/oauth/campux/callback
   - `platform = campux`
   - `id = sub`
   - 按 `(platform, id)` 唯一
-- 首选 Hydro 用户名：QQ 号
+- Hydro 用户名：QQ 昵称（`username`；冲突时回退 QQ 号 / `campux_<sub>`）
+- Hydro UID：QQ 号（`name`）
 - 合成邮箱：`<qq>@campux.hydro.local`
 - 用户字段：
   - `qq`
@@ -86,6 +87,8 @@ http://192.168.18.11:8888/oauth/campux/callback
 - 管理员 QQ：
   - 首次登录直接授予 `PRIV_ALL`
   - 插件启动时也会查找已有账号并补齐管理员权限
+
+首次 OAuth **自动注册**的账号会带 `noLocalPassword=true`，登录后强制跳转设置本地密码；该标记只写一次，已有用户再次登录不会重置。
 
 ## 登录体验
 
