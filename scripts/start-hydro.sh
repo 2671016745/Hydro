@@ -13,6 +13,7 @@ fi
 node data/set-hydro-lan.js
 node data/set-site-name.js
 node data/set-domain-avatar.js
+node data/apply-brand-settings.js || true
 
 # Optional local secrets file (do not commit)
 if [[ -f scripts/env.campux ]]; then

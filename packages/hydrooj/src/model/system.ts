@@ -46,14 +46,10 @@ class SystemModelService extends Service {
     async set<K extends keyof SystemKeys>(_id: K, value: SystemKeys[K], broadcast?: boolean): Promise<SystemKeys[K]>;
     async set<K>(_id: string, value: K, broadcast?: boolean): Promise<K>;
     async set(_id: string, value: any, broadcast = true) {
+        this.cache[_id] = value;
         if (broadcast) this.ctx.broadcast('system/setting', { [_id]: value });
-        const res = await this.coll.findOneAndUpdate(
-            { _id },
-            { $set: { value } },
-            { upsert: true, returnDocument: 'after' },
-        );
-        this.cache[_id] = res.value;
-        return res.value;
+        await this.coll.updateOne({ _id }, { $set: { value } }, { upsert: true });
+        return value;
     }
 
     async del(_id: string, broadcast = true): Promise<boolean> {
@@ -65,7 +61,7 @@ class SystemModelService extends Service {
 
     async [Service.init]() {
         for (const setting of SYSTEM_SETTINGS) {
-            if (setting.value) this.cache[setting.key] = setting.value;
+            if (setting.value !== undefined && setting.value !== null) this.cache[setting.key] = setting.value;
         }
         const config = await this.coll.find().toArray();
         for (const i of config) this.cache[i._id] = i.value;
