@@ -133,7 +133,7 @@ export async function apply(ctx: Context) {
     ctx.Route('checkin', '/checkin', CheckinHandler);
     ctx.Route('checkin_manage', '/checkin/manage', CheckinManageHandler);
 
-    // 导航项已在 hydrooj/lib/ui.ts 以原生 inject('Nav', 'checkin') 注册，此处不改顶栏/侧栏结构。
+    // 入口在用户名下拉菜单（UserDropdown），与「我的资料」等同级，样式保持 Hydro 原生 menu__link
     ctx.i18n.load('zh', {
         checkin: '签到',
         Checkin: '签到',
