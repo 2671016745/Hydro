@@ -133,41 +133,34 @@ export async function apply(ctx: Context) {
     ctx.Route('checkin', '/checkin', CheckinHandler);
     ctx.Route('checkin_manage', '/checkin/manage', CheckinManageHandler);
 
-    const uiInject = (global as any).Hydro?.ui?.inject;
-    if (uiInject) {
-        // displayName 让侧边栏显示「签到 / Check-in」等，而不是路由名 checkin
-        uiInject('Nav', 'checkin', { prefix: 'checkin', displayName: 'Checkin' }, PRIV.PRIV_USER_PROFILE);
-        uiInject('ControlPanel', 'checkin_manage');
-    }
-
-    // 多语言
+    // 导航项已在 hydrooj/lib/ui.ts 以原生 inject('Nav', 'checkin') 注册，此处不改顶栏/侧栏结构。
     ctx.i18n.load('zh', {
-        Checkin: '签到',
         checkin: '签到',
+        Checkin: '签到',
         'Check-in records': '签到记录',
         'Checked in': '已签到',
         'Not checked in': '未签到',
         'Check in': '签到',
     });
     ctx.i18n.load('zh_TW', {
-        Checkin: '簽到',
         checkin: '簽到',
+        Checkin: '簽到',
         'Check-in records': '簽到記錄',
         'Checked in': '已簽到',
         'Not checked in': '未簽到',
         'Check in': '簽到',
     });
     ctx.i18n.load('en', {
-        Checkin: 'Check-in',
         checkin: 'Check-in',
+        Checkin: 'Check-in',
         'Check-in records': 'Check-in records',
         'Checked in': 'Checked in',
         'Not checked in': 'Not checked in',
         'Check in': 'Check in',
     });
     ctx.i18n.load('ko', {
-        Checkin: '출석',
         checkin: '출석',
+        Checkin: '출석',
         'Check-in records': '출석 기록',
         'Checked in': '출석함',
         'Not checked in': '미출석',
