@@ -20,6 +20,7 @@ class CheckinService extends Service {
 
     constructor(ctx: Context) {
         super(ctx, 'checkin');
+        currentService = this;
     }
 
     async [Service.init]() {
@@ -52,6 +53,13 @@ class CheckinService extends Service {
     }
 }
 
+// Cordis 禁止未 inject 时读 ctx.checkin，这里用模块内单例。
+let currentService: CheckinService | null = null;
+function svc(): CheckinService {
+    if (!currentService) throw new Error('checkin service not ready');
+    return currentService;
+}
+
 function domainOf(handler: Handler): string {
     return (handler as any).domainId || (handler as any).domain?._id || 'system';
 }
@@ -62,12 +70,11 @@ class CheckinHandler extends Handler {
             this.response.redirect = this.url('user_login');
             return;
         }
-        const svc = (this.ctx as any).checkin as CheckinService;
         const domainId = domainOf(this);
         const day = dayKey();
-        const checked = await svc.isCheckedIn(domainId, this.user._id, day);
-        const history = await svc.listUser(domainId, this.user._id, 14);
-        const todayList = await svc.listDay(domainId, day);
+        const checked = await svc().isCheckedIn(domainId, this.user._id, day);
+        const history = await svc().listUser(domainId, this.user._id, 14);
+        const todayList = await svc().listDay(domainId, day);
         this.response.template = 'checkin.html';
         this.response.body = {
             day,
@@ -82,8 +89,7 @@ class CheckinHandler extends Handler {
             this.response.redirect = this.url('user_login');
             return;
         }
-        const svc = (this.ctx as any).checkin as CheckinService;
-        const result = await svc.checkIn(domainOf(this), this.user._id, this.user.uname);
+        const result = await svc().checkIn(domainOf(this), this.user._id, this.user.uname);
         if (this.request.json) {
             this.response.body = result;
             return;
@@ -98,10 +104,9 @@ class CheckinManageHandler extends Handler {
             this.response.body = { error: 'Permission denied' };
             return;
         }
-        const svc = (this.ctx as any).checkin as CheckinService;
         const domainId = domainOf(this);
         const target = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : dayKey();
-        const records = await svc.listDay(domainId, target);
+        const records = await svc().listDay(domainId, target);
         const checkedUids = new Set(records.map((r: any) => r.uid));
         const udocs = await (this.ctx.db as any).collection('user').find({}).sort({ uname: 1 }).toArray();
         const rows = udocs
@@ -123,28 +128,50 @@ class CheckinManageHandler extends Handler {
     }
 }
 
-declare module 'cordis' {
-    interface Context {
-        checkin: CheckinService;
-    }
-}
-
 export async function apply(ctx: Context) {
     await ctx.plugin(CheckinService);
     ctx.Route('checkin', '/checkin', CheckinHandler);
     ctx.Route('checkin_manage', '/checkin/manage', CheckinManageHandler);
+
     const uiInject = (global as any).Hydro?.ui?.inject;
     if (uiInject) {
-        uiInject('Nav', 'checkin', { prefix: 'checkin' }, PRIV.PRIV_USER_PROFILE);
+        // displayName 让侧边栏显示「签到 / Check-in」等，而不是路由名 checkin
+        uiInject('Nav', 'checkin', { prefix: 'checkin', displayName: 'Checkin' }, PRIV.PRIV_USER_PROFILE);
         uiInject('ControlPanel', 'checkin_manage');
     }
+
+    // 多语言
     ctx.i18n.load('zh', {
         Checkin: '签到',
+        checkin: '签到',
         'Check-in records': '签到记录',
+        'Checked in': '已签到',
+        'Not checked in': '未签到',
+        'Check in': '签到',
+    });
+    ctx.i18n.load('zh_TW', {
+        Checkin: '簽到',
+        checkin: '簽到',
+        'Check-in records': '簽到記錄',
+        'Checked in': '已簽到',
+        'Not checked in': '未簽到',
+        'Check in': '簽到',
     });
     ctx.i18n.load('en', {
         Checkin: 'Check-in',
+        checkin: 'Check-in',
         'Check-in records': 'Check-in records',
+        'Checked in': 'Checked in',
+        'Not checked in': 'Not checked in',
+        'Check in': 'Check in',
+    });
+    ctx.i18n.load('ko', {
+        Checkin: '출석',
+        checkin: '출석',
+        'Check-in records': '출석 기록',
+        'Checked in': '출석함',
+        'Not checked in': '미출석',
+        'Check in': '출석하기',
     });
 }
 

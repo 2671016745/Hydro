@@ -8,14 +8,14 @@
       </div>
       <div class="section__body">
         {% if checked %}
-          <p class="typo"><strong>今日已签到</strong></p>
+          <p class="typo"><strong>{{ _('Checked in') }}</strong></p>
         {% else %}
-          <p class="typo">今日尚未签到。</p>
+          <p class="typo">{{ _('Not checked in') }}</p>
           <form method="post">
-            <button type="submit" class="rounded primary button">{{ _('Checkin') }}</button>
+            <button type="submit" class="rounded primary button">{{ _('Check in') }}</button>
           </form>
         {% endif %}
-        <p class="typo">今日已签到人数：<strong>{{ todayCount }}</strong></p>
+        <p class="typo">{{ _('Check-in records') }} · {{ day }}：{{ todayCount }}</p>
       </div>
     </div>
     <div class="section">
@@ -26,8 +26,8 @@
         <table class="data_table">
           <thead>
             <tr>
-              <th>日期</th>
-              <th>时间</th>
+              <th>{{ _('Date') }}</th>
+              <th>{{ _('Time') }}</th>
             </tr>
           </thead>
           <tbody>
@@ -37,7 +37,7 @@
               <td>{{ h.createdAt }}</td>
             </tr>
             {% else %}
-            <tr><td colspan="2">暂无记录</td></tr>
+            <tr><td colspan="2">—</td></tr>
             {% endfor %}
           </tbody>
         </table>
