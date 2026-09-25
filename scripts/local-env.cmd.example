@@ -1,0 +1,5 @@
+@echo off
+rem Copy to data\local-env.cmd (gitignored) and fill in real secrets. NEVER commit this file with secrets.
+set CAMPUX_OAUTH_CLIENT_ID=3Z79dpQTasLMLF2c
+set CAMPUX_OAUTH_CLIENT_SECRET=replace-me
+set CAMPUX_OAUTH_CALLBACK=http://192.168.18.11:8888/oauth/campux/callback

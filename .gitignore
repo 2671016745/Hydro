@@ -70,3 +70,7 @@ node_modules.*
 
 # local OAuth secrets for Linux scripts
 scripts/env.campux
+
+# local OAuth secrets
+data/local-env.cmd
+scripts/local-env.cmd
