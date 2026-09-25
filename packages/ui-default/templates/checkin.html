@@ -1,0 +1,48 @@
+{% extends "layout/html5.html" %}
+{% block content %}
+<div class="row">
+  <div class="columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Checkin') }} · {{ day }}</h1>
+      </div>
+      <div class="section__body">
+        {% if checked %}
+          <p class="typo"><strong>今日已签到</strong></p>
+        {% else %}
+          <p class="typo">今日尚未签到。</p>
+          <form method="post">
+            <button type="submit" class="rounded primary button">{{ _('Checkin') }}</button>
+          </form>
+        {% endif %}
+        <p class="typo">今日已签到人数：<strong>{{ todayCount }}</strong></p>
+      </div>
+    </div>
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">{{ _('Check-in records') }}</h1>
+      </div>
+      <div class="section__body">
+        <table class="data_table">
+          <thead>
+            <tr>
+              <th>日期</th>
+              <th>时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for h in history %}
+            <tr>
+              <td>{{ h.day }}</td>
+              <td>{{ h.createdAt }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="2">暂无记录</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,151 @@
+/**
+ * 签到：用户每日签到入库，管理员查看谁签到 / 谁未签到。
+ */
+import {
+    Context, Handler, PRIV, Schema, Service,
+} from 'hydrooj';
+import moment from 'moment-timezone';
+
+const collName = 'checkin';
+
+export function dayKey(date: Date | number = new Date()) {
+    return moment(date).tz('Asia/Shanghai').format('YYYY-MM-DD');
+}
+
+class CheckinService extends Service {
+    static inject = ['db'];
+    static Config = Schema.object({});
+
+    public coll: any;
+
+    constructor(ctx: Context) {
+        super(ctx, 'checkin');
+    }
+
+    async [Service.init]() {
+        this.coll = (this.ctx.db as any).collection(collName);
+        await (this.ctx.db as any).ensureIndexes(this.coll, {
+            name: 'user_day',
+            key: { domainId: 1, uid: 1, day: 1 },
+            unique: true,
+        });
+    }
+
+    async isCheckedIn(domainId: string, uid: number, day = dayKey()) {
+        return !!(await this.coll.findOne({ domainId, uid, day }));
+    }
+
+    async checkIn(domainId: string, uid: number, uname: string) {
+        const day = dayKey();
+        const existing = await this.coll.findOne({ domainId, uid, day });
+        if (existing) return { ok: true, day, already: true };
+        await this.coll.insertOne({ domainId, uid, uname, day, createdAt: new Date() });
+        return { ok: true, day, already: false };
+    }
+
+    async listDay(domainId: string, day: string) {
+        return await this.coll.find({ domainId, day }).sort({ createdAt: 1 }).toArray();
+    }
+
+    async listUser(domainId: string, uid: number, limit = 30) {
+        return await this.coll.find({ domainId, uid }).sort({ day: -1 }).limit(limit).toArray();
+    }
+}
+
+function domainOf(handler: Handler): string {
+    return (handler as any).domainId || (handler as any).domain?._id || 'system';
+}
+
+class CheckinHandler extends Handler {
+    async get() {
+        if (!this.user.hasPriv(PRIV.PRIV_USER_PROFILE)) {
+            this.response.redirect = this.url('user_login');
+            return;
+        }
+        const svc = (this.ctx as any).checkin as CheckinService;
+        const domainId = domainOf(this);
+        const day = dayKey();
+        const checked = await svc.isCheckedIn(domainId, this.user._id, day);
+        const history = await svc.listUser(domainId, this.user._id, 14);
+        const todayList = await svc.listDay(domainId, day);
+        this.response.template = 'checkin.html';
+        this.response.body = {
+            day,
+            checked,
+            history,
+            todayCount: todayList.length,
+        };
+    }
+
+    async post() {
+        if (!this.user.hasPriv(PRIV.PRIV_USER_PROFILE)) {
+            this.response.redirect = this.url('user_login');
+            return;
+        }
+        const svc = (this.ctx as any).checkin as CheckinService;
+        const result = await svc.checkIn(domainOf(this), this.user._id, this.user.uname);
+        if (this.request.json) {
+            this.response.body = result;
+            return;
+        }
+        this.response.redirect = this.url('checkin');
+    }
+}
+
+class CheckinManageHandler extends Handler {
+    async get({ day }: { day?: string }) {
+        if (!this.user.hasPriv(PRIV.PRIV_EDIT_SYSTEM)) {
+            this.response.body = { error: 'Permission denied' };
+            return;
+        }
+        const svc = (this.ctx as any).checkin as CheckinService;
+        const domainId = domainOf(this);
+        const target = day && /^\d{4}-\d{2}-\d{2}$/.test(day) ? day : dayKey();
+        const records = await svc.listDay(domainId, target);
+        const checkedUids = new Set(records.map((r: any) => r.uid));
+        const udocs = await (this.ctx.db as any).collection('user').find({}).sort({ uname: 1 }).toArray();
+        const rows = udocs
+            .filter((u: any) => u._id !== 0)
+            .map((u: any) => ({
+                uid: u._id,
+                uname: u.uname,
+                displayName: u.displayName || '',
+                checked: checkedUids.has(u._id),
+                at: records.find((r: any) => r.uid === u._id)?.createdAt || null,
+            }));
+        this.response.template = 'checkin_manage.html';
+        this.response.body = {
+            day: target,
+            rows,
+            checkedCount: rows.filter((r) => r.checked).length,
+            total: rows.length,
+        };
+    }
+}
+
+declare module 'cordis' {
+    interface Context {
+        checkin: CheckinService;
+    }
+}
+
+export async function apply(ctx: Context) {
+    await ctx.plugin(CheckinService);
+    ctx.Route('checkin', '/checkin', CheckinHandler);
+    ctx.Route('checkin_manage', '/checkin/manage', CheckinManageHandler);
+    const uiInject = (global as any).Hydro?.ui?.inject;
+    if (uiInject) {
+        uiInject('Nav', 'checkin', { prefix: 'checkin' }, PRIV.PRIV_USER_PROFILE);
+        uiInject('ControlPanel', 'checkin_manage');
+    }
+    ctx.i18n.load('zh', {
+        Checkin: '签到',
+        'Check-in records': '签到记录',
+    });
+    ctx.i18n.load('en', {
+        Checkin: 'Check-in',
+        'Check-in records': 'Check-in records',
+    });
+}
+
+export default CheckinService;

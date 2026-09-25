@@ -1,0 +1,54 @@
+{% extends "layout/html5.html" %}
+{% block content %}
+<div class="row">
+  <div class="columns">
+    <div class="section">
+      <div class="section__header">
+        <h1 class="section__title">签到管理 · {{ day }}</h1>
+      </div>
+      <div class="section__body">
+        <p class="typo">
+          日期：<code>{{ day }}</code>
+          · 已签到 <strong>{{ checkedCount }}</strong> / {{ total }}
+        </p>
+        <form method="get" class="form__">
+          <label>查询日期
+            <input type="date" name="day" value="{{ day }}" />
+          </label>
+          <button type="submit" class="rounded button">查询</button>
+        </form>
+        <table class="data_table">
+          <thead>
+            <tr>
+              <th>UID</th>
+              <th>用户名</th>
+              <th>昵称</th>
+              <th>状态</th>
+              <th>签到时间</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for r in rows %}
+            <tr>
+              <td>{{ r.uid }}</td>
+              <td>{{ r.uname }}</td>
+              <td>{{ r.displayName }}</td>
+              <td>
+                {% if r.checked %}
+                  <span style="color:#2e7d32">已签到</span>
+                {% else %}
+                  <span style="color:#c62828">未签到</span>
+                {% endif %}
+              </td>
+              <td>{{ r.at if r.at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="5">暂无用户</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

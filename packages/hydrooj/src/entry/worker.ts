@@ -81,6 +81,8 @@ export async function apply(ctx: Context) {
         disablePasswordLogin: true,
         adminQq: process.env.CAMPUX_ADMIN_QQ?.trim() || '1692138502',
     });
+    // 签到功能
+    await require('../../../checkin').apply(ctx);
     await addon(pending, fail, ctx);
     await loadDir(path.resolve(__dirname, '..', 'script'));
     await ctx.parallel('app/started');
