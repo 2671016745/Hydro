@@ -41,5 +41,8 @@ fi
 
 export CAMPUX_OAUTH_ENDPOINT CAMPUX_OAUTH_SCOPE CAMPUX_ADMIN_QQ
 
+# 日志上限 100MB
+node scripts/cap-log.js data/hydro.log 100 || true
+node scripts/cap-log.js data/hydro.err.log 100 || true
 exec node -r @hydrooj/register packages/hydrooj/bin/hydrooj.js \
   --host 0.0.0.0 --port 8888 --public
