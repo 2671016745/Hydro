@@ -1,5 +1,5 @@
 import {
-    Context, Handler, Logger, PRIV, Schema, Service, superagent, SystemModel,
+    Context, Handler, Logger, PERM, PRIV, Schema, Service, superagent, SystemModel,
     TokenModel, UserFacingError, UserModel,
 } from 'hydrooj';
 import { pkceChallenge, randomVerifier } from './pkce';
@@ -14,14 +14,24 @@ function parseAdminQqs(raw: string | undefined): string[] {
         .filter((x) => /^\d{5,20}$/.test(x));
 }
 
-/** 用当前请求 Host 生成 callback，保证与 Campux 应用登记的 redirect_uri 一致。 */
-function resolveRedirectUri(handler: Handler): string {
+function requestOrigin(handler: Handler): string {
     const protoHeader = String(handler.request.headers?.['x-forwarded-proto'] || '').split(',')[0].trim();
     const proto = protoHeader || (handler.request.headers?.['x-forwarded-ssl'] ? 'https' : 'http');
     const host = String(handler.request.host || '').trim();
-    const fallback = String(SystemModel.get('server.url') || '').replace(/\/+$/, '/');
-    if (host) return `${proto}://${host}/oauth/campux/callback`;
-    return `${fallback}oauth/campux/callback`;
+    if (host) return `${proto}://${host}`;
+    return String(SystemModel.get('server.url') || 'http://127.0.0.1:8888/').replace(/\/+$/, '');
+}
+
+/**
+ * OAuth 协议用的 redirect_uri（需在 Campux 应用登记 **一条** 即可）。
+ * 优先 CAMPUX_OAUTH_CALLBACK，否则用 server.url。
+ * 用户从任意 host 打开时，登录完成后再用 attach 票据把会话桥接到当前 host。
+ */
+function resolveRedirectUri(_handler: Handler): string {
+    const fromEnv = String(process.env.CAMPUX_OAUTH_CALLBACK || '').trim();
+    if (fromEnv) return fromEnv;
+    const base = String(SystemModel.get('server.url') || 'http://127.0.0.1:8888/').replace(/\/+$/, '/');
+    return `${base}oauth/campux/callback`;
 }
 
 // Campux 官方标识（精简内联版，完整资源见 /img/campux-logo.svg）
@@ -37,6 +47,28 @@ type CampuxUserInfo = {
     scope?: string;
     client_id?: string;
 };
+
+
+class CampuxAttachHandler extends Handler {
+    noCheckPermView = true;
+
+    async get({ ticket }: { ticket: string }) {
+        if (!ticket) throw new UserFacingError('token');
+        const t = await TokenModel.get(ticket, TokenModel.TYPE_EXPORT);
+        if (!t || typeof t.uid !== 'number') throw new UserFacingError('token');
+        await TokenModel.del(ticket, TokenModel.TYPE_EXPORT);
+        const udoc = await UserModel.getById('system', t.uid);
+        if (!udoc) throw new UserFacingError('token');
+        this.context.HydroContext.user = udoc;
+        this.session.uid = udoc._id;
+        this.session.viewLang = '';
+        this.session.sudo = null;
+        this.session.sudoUid = null;
+        this.session.scope = PERM.PERM_ALL.toString();
+        this.session.recreate = true;
+        this.response.redirect = typeof t.returnTo === 'string' && t.returnTo.startsWith('/') ? t.returnTo : '/';
+    }
+}
 
 export default class LoginWithCampuxService extends Service {
     static inject = ['oauth', 'db', 'model:system'];
@@ -138,12 +170,16 @@ export default class LoginWithCampuxService extends Service {
                 logger.info('Campux OAuth redirect_uri=%s', redirectUri);
                 const verifier = randomVerifier();
                 const challenge = pkceChallenge(verifier);
+                const returnOrigin = requestOrigin(this);
                 const [state] = await TokenModel.add(TokenModel.TYPE_OAUTH, 600, {
                     redirect: this.request.referer,
                     codeVerifier: verifier,
                     redirectUri,
+                    returnOrigin,
                 });
                 this.session.oauthCampuxState = state;
+                this.session.oauthCampuxReturn = returnOrigin;
+                this.session.oauthCampuxReturnTo = this.session.oauthRedirect || '/';
                 const authorize = new URL(`${endpoint}/oauth/authorize`);
                 authorize.searchParams.set('response_type', 'code');
                 authorize.searchParams.set('client_id', config.id);
@@ -181,6 +217,24 @@ export default class LoginWithCampuxService extends Service {
         ctx.i18n.load('ko', {
             'Login with Campux': 'Campux로 계속하기',
         });
+        // 跨 host：OAuth 在统一 callback 上完成登录后，用一次性票据把会话桥接回用户实际访问的 host。
+        ctx.on('auth/login', async (handler: any, udoc: any) => {
+            try {
+                const ret = String(handler.session?.oauthCampuxReturn || '').replace(/\/+$/, '');
+                const current = requestOrigin(handler);
+                if (!ret || ret === current || !udoc || udoc._id === 0) return;
+                const [ticket] = await TokenModel.add(TokenModel.TYPE_EXPORT, 120, {
+                    uid: udoc._id,
+                    returnTo: handler.session.oauthCampuxReturnTo || '/',
+                });
+                handler.session.oauthRedirect = `${ret}/oauth/campux/attach?ticket=${encodeURIComponent(ticket)}`;
+            } catch (e) {
+                logger.warn('campux attach redirect failed: %o', e);
+            }
+        });
+
+        ctx.Route('campux_attach', '/oauth/campux/attach', CampuxAttachHandler);
+
         logger.info('Campux OAuth enabled (password login: %s)', config.disablePasswordLogin ? 'disabled' : 'kept');
     }
 
